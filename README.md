@@ -3,11 +3,18 @@
 > 自带 API Key 的极简 Chatbot 应用：配置三项参数即可连接任意 OpenAI 兼容服务。
 > 定位为 [NextChat](https://github.com/ChatGPTNextWeb/NextChat) 的**简化版** —— 无用户系统、无插件、无多模型管理，只聚焦「聊天 + 配置」。
 
-![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange)
+![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange) [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel)](https://chatbot-eight-theta-30.vercel.app/chat)
+
+## 🚀 在线 Demo
+
+👉 **[Chatbot Demo — BYOK 简易聊天](https://chatbot-eight-theta-30.vercel.app/chat)**
+
+打开后点击「参数设置」，填入你的 Base URL / API Key / Model 即可开始使用。
 
 ## 📦 仓库地址
 
 - **GitHub**: https://github.com/Nolan180940/chatbot-demo
+- **在线 Demo**: https://chatbot-eight-theta-30.vercel.app/chat
 - **部署指南**: 见 [USER-SETUP.md](./USER-SETUP.md)
 - **逆向分析**: 见 [PROMPT.md](./PROMPT.md)
 - **技术方案**: 见 [PLAN.md](./PLAN.md)
