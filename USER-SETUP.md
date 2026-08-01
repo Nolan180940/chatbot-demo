@@ -28,14 +28,27 @@ npm --version    # 9+ 即可
 
 ### 2.1 获取代码
 
+本项目的官方仓库位于：**https://github.com/Nolan180940/chatbot-demo**
+
 ```bash
-# 方式一：克隆
-git clone https://github.com/<你的用户名>/chatbot-demo.git
+# 方式一：克隆官方仓库
+git clone https://github.com/Nolan180940/chatbot-demo.git
 cd chatbot-demo
 
-# 方式二：在已有目录内直接使用
-# cd 到项目目录即可
+# 方式二：Fork 后克隆你自己的副本（推荐，便于二次开发）
+git clone https://github.com/<你的GitHub用户名>/chatbot-demo.git
+cd chatbot-demo
+
+# 方式三：本地已有该目录时，直接进入即可
+cd path/to/chatbot-demo
 ```
+
+> 💡 若你 Fork 了本项目，建议添加上游以便同步更新：
+> ```bash
+> git remote add upstream https://github.com/Nolan180940/chatbot-demo.git
+> git fetch upstream
+> git merge upstream/main
+> ```
 
 ### 2.2 安装依赖
 
@@ -102,15 +115,24 @@ npm start       # 以生产模式运行，同样访问 localhost:3000
 
 ## 4. 部署到 Vercel
 
-### 4.1 前置：推送到 GitHub
+### 4.1 前置：推送到你自己的 GitHub 仓库
+
+如果你 Fork 了官方仓库，可直接部署 Fork 副本；若从零开始，请先创建你自己的仓库并推送：
 
 ```bash
 git init
 git add .
 git commit -m "init chatbot-demo"
-git remote add origin https://github.com/<你的用户名>/chatbot-demo.git
+
+# 将 origin 指向你自己的仓库（把 <你的GitHub用户名> 换成你的名字）
+git remote add origin https://github.com/<你的GitHub用户名>/chatbot-demo.git
+# 官方原仓库地址（只读参考）：https://github.com/Nolan180940/chatbot-demo.git
+
+git branch -M main
 git push -u origin main
 ```
+
+> ✅ 推送成功后，前往 GitHub 页面确认仓库内容与本地一致（注意 `node_modules/` 与 `.next/` 已被 `.gitignore` 排除）。
 
 ### 4.2 授权并导入项目
 
@@ -129,11 +151,14 @@ git push -u origin main
 ### 4.4 部署
 
 1. 检查 Build 配置（保持默认即可）：
+   - Framework Preset: `Next.js`（自动识别）
    - Build Command: `npm run build`
    - Output Directory: 留空（自动）
 2. 点击 **Deploy**
 3. 等待 1–2 分钟，看到 **Congratulations!** 即完成
-4. 访问生成的域名，如 `https://chatbot-demo-xxxx.vercel.app`
+4. 访问生成的域名，例如 `https://chatbot-demo-<你的项目名>.vercel.app`（可在 Vercel 的 Settings → Domains 中绑定自定义域名）
+
+> 📌 部署后若提示更新，可能是 Vercel 默认创建了新项目而非 Fork，导致无法检测上游更新。建议删除重建，或改用 Fork 方式部署。
 
 ### 4.5 后续更新
 

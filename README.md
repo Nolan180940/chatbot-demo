@@ -5,6 +5,22 @@
 
 ![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange)
 
+## 📦 仓库地址
+
+- **GitHub**: https://github.com/Nolan180940/chatbot-demo
+- **部署指南**: 见 [USER-SETUP.md](./USER-SETUP.md)
+- **逆向分析**: 见 [PROMPT.md](./PROMPT.md)
+- **技术方案**: 见 [PLAN.md](./PLAN.md)
+
+快速开始：
+
+```bash
+git clone https://github.com/Nolan180940/chatbot-demo.git
+cd chatbot-demo
+npm install
+npm run dev   # http://localhost:3000
+```
+
 ---
 
 ## ✨ 项目概述与技术栈
