@@ -1,0 +1,200 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useChatStore } from "@/store/chat-store";
+import { exportAllSessions } from "@/lib/export";
+import { DEFAULT_SESSION_TITLE } from "@/lib/config";
+
+function timeLabel(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+export default function Sidebar() {
+  const sessions = useChatStore((s) => s.sessions);
+  const activeId = useChatStore((s) => s.activeSessionId);
+  const createSession = useChatStore((s) => s.createSession);
+  const deleteSession = useChatStore((s) => s.deleteSession);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const isSettings = pathname === "/settings";
+  const isStats = pathname === "/stats";
+  const [exported, setExported] = useState(false);
+
+  return (
+    <aside className="w-64 flex-shrink-0 h-full bg-ink-900 border-r border-line flex flex-col">
+      {/* Logo */}
+      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-line">
+        <div className="w-8 h-8 rounded-lg bg-gold-dim border border-gold/30 flex items-center justify-center">
+          <svg className="w-4.5 h-4.5 w-5 h-5 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M4 17l6-6-6-6M12 19h8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <div className="min-w-0">
+          <div className="font-display text-sm font-semibold text-white leading-tight">
+            chatbot
+          </div>
+          <div className="font-mono text-[9px] text-dim leading-tight tracking-wider">
+            BYOK · CONSOLE
+          </div>
+        </div>
+      </div>
+
+      {/* 新建 + 导航 */}
+      <div className="p-3 flex flex-col gap-1.5">
+        <button
+          onClick={() => {
+            const id = createSession();
+            router.push("/chat");
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gold hover:bg-gold-soft text-ink-950 font-display text-sm font-semibold shadow-gold transition-all"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+          </svg>
+          新建对话
+        </button>
+
+        <button
+          onClick={() => router.push("/settings")}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+            isSettings
+              ? "bg-gold-dim text-gold border border-gold/25"
+              : "text-dim hover:text-slate-100 hover:bg-white/5 border border-transparent"
+          }`}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          参数设置
+        </button>
+
+        <button
+          onClick={() => router.push("/stats")}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+            isStats
+              ? "bg-gold-dim text-gold border border-gold/25"
+              : "text-dim hover:text-slate-100 hover:bg-white/5 border border-transparent"
+          }`}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 20V10M12 20V4M6 20v-6" strokeLinecap="round" />
+          </svg>
+          数据统计
+        </button>
+      </div>
+
+      {/* 会话列表 */}
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <div className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-dim/70">
+          history
+        </div>
+        {sessions.length === 0 ? (
+          <div className="px-3 py-6 text-center text-xs text-dim/70">
+            暂无会话，点击「新建对话」开始
+          </div>
+        ) : (
+          sessions.map((s) => {
+            const active = s.id === activeId && !isSettings && !isStats;
+            return (
+              <div
+                key={s.id}
+                className={`group relative flex items-center gap-2 mb-1 px-3 py-2 rounded-lg cursor-pointer text-sm transition-all ${
+                  active
+                    ? "bg-gold-dim text-slate-100 border border-gold/25"
+                    : "text-dim hover:bg-white/5 hover:text-slate-200 border border-transparent"
+                }`}
+                onClick={() => {
+                  useChatStore.getState().switchSession(s.id);
+                  router.push("/chat");
+                }}
+              >
+                <span className={`font-mono text-gold/70 flex-shrink-0 select-none`}>
+                  ❯
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate">
+                    {s.title === DEFAULT_SESSION_TITLE ? "（新对话）" : s.title}
+                  </div>
+                  <div className="font-mono text-[9px] text-dim/70 mt-0.5">
+                    {s.messages.length} msgs · {timeLabel(s.createdAt)}
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete(s.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-rose-500/10 text-dim hover:text-rose-400 transition-all"
+                  title="删除会话"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+                  </svg>
+                </button>
+
+                {confirmDelete === s.id && (
+                  <div className="absolute right-2 top-full mt-1 z-20 bg-ink-800 border border-line rounded-xl p-3 shadow-2xl w-44 animate-fade-in">
+                    <div className="text-xs text-slate-300 mb-2">删除该会话？</div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(s.id);
+                          setConfirmDelete(null);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+                      >
+                        删除
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(null);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs rounded-md bg-white/5 text-slate-300 hover:bg-white/10"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 底部 */}
+      <div className="px-4 py-3 border-t border-line space-y-2">
+        <button
+          onClick={() => {
+            exportAllSessions();
+            setExported(true);
+            setTimeout(() => setExported(false), 1500);
+          }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim hover:text-slate-100 hover:bg-white/5 transition-all"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {exported ? "exported ✓" : "导出全部 (JSON)"}
+        </button>
+        <div className="font-mono text-[9px] text-dim/60 leading-relaxed pt-2 border-t border-line">
+          数据仅保存在本地浏览器
+          <br />
+          API Key 不会上传到服务器
+        </div>
+      </div>
+    </aside>
+  );
+}

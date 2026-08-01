@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0f1e;
+  --panel: #101728;
+  --panel-2: #161f35;
+  --border: rgba(148, 163, 184, 0.14);
+  --text: #e8ecf4;
+  --text-dim: #8b94a8;
+  --accent: #f0b429;
+  --accent-2: #2dd4bf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 全屏微妙的径向氛围光 */
+.app-ambient {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(240, 180, 41, 0.05), transparent 60%),
+    radial-gradient(1000px 500px at -10% 110%, rgba(45, 212, 191, 0.04), transparent 55%),
+    var(--bg);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c2740;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #27385c;
+}
+
+/* 流式光标 */
+.stream-cursor::after {
+  content: "▍";
+  color: var(--accent);
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* Markdown 内容样式（终端输出风格） */
+.prose-chat {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  word-break: break-word;
+  color: #dbe2ee;
+}
+.prose-chat p {
+  margin: 0.5rem 0;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-weight: 700;
+  color: #f2f5fb;
+  margin: 1rem 0 0.5rem;
+}
+.prose-chat h1 { font-size: 1.4em; }
+.prose-chat h2 { font-size: 1.25em; }
+.prose-chat h3 { font-size: 1.1em; }
+.prose-chat ul { list-style: disc; padding-left: 1.4rem; margin: 0.5rem 0; }
+.prose-chat ol { list-style: decimal; padding-left: 1.4rem; margin: 0.5rem 0; }
+.prose-chat li { margin: 0.2rem 0; }
+.prose-chat a { color: #f5c34d; text-decoration: underline; text-underline-offset: 2px; }
+.prose-chat blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.8rem;
+  color: var(--text-dim);
+  margin: 0.6rem 0;
+}
+.prose-chat table {
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+  width: 100%;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.7rem;
+  text-align: left;
+}
+.prose-chat th { background: var(--panel-2); color: #f2f5fb; }
+.prose-chat code {
+  background: #1c2740;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  color: #f5c34d;
+}
+.prose-chat pre {
+  background: #0b101f;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  margin: 0.6rem 0;
+}
+.prose-chat pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #dbe2ee;
+}
+.prose-chat hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
