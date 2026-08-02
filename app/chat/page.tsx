@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "@/store/chat-store";
-import Sidebar from "@/components/sidebar/Sidebar";
+import SidebarLayout from "@/components/sidebar/SidebarLayout";
 import ChatWindow from "@/components/chat/ChatWindow";
 
 export default function ChatPage() {
@@ -23,8 +23,7 @@ export default function ChatPage() {
   const active = sessions.find((s) => s.id === activeId);
 
   return (
-    <div className="flex h-screen overflow-hidden app-ambient">
-      <Sidebar />
+    <SidebarLayout>
       {active ? (
         <ChatWindow sessionId={active.id} />
       ) : (
@@ -40,6 +39,6 @@ export default function ChatPage() {
           </button>
         </div>
       )}
-    </div>
+    </SidebarLayout>
   );
 }

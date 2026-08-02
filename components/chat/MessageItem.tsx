@@ -3,6 +3,8 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import type { ChatMessage } from "@/lib/types";
 
 function CopyButton({ text }: { text: string }) {
@@ -26,6 +28,27 @@ function CopyButton({ text }: { text: string }) {
       {copied ? "copied ✓" : "copy"}
     </button>
   );
+}
+
+/**
+ * remark-math 只把「$$ 独占一行、内容在中间、再 $$ 独占一行」的围栏式写法
+ * 识别为块级公式；单行 `$$...$$` 会被当成行内公式（甚至原样输出）。
+ * 这里把常见的单行 `$$...$$`（以及 `\[...\]`）统一转成围栏式块级公式，
+ * 让 KaTeX 以 display 模式渲染。
+ */
+function normalizeLatex(md: string): string {
+  let out = md;
+  // \[ ... \] → 围栏式块级公式
+  out = out.replace(/\\\[([\s\S]+?)\\\]/g, (_m, inner: string) => {
+    const v = inner.replace(/\n{2,}/g, "\n").trim();
+    return v ? `$$\n${v}\n$$` : _m;
+  });
+  // 单行 / 行内 $$...$$ → 围栏式块级公式
+  out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_m, inner: string) => {
+    const v = inner.replace(/\n{2,}/g, "\n").trim();
+    return v ? `$$\n${v}\n$$` : _m;
+  });
+  return out;
 }
 
 export default function MessageItem({
@@ -88,8 +111,11 @@ export default function MessageItem({
             <div
               className={`prose-chat ${streaming ? "stream-cursor" : ""}`}
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {message.content || "…"}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {normalizeLatex(message.content) || "…"}
               </ReactMarkdown>
             </div>
           </div>

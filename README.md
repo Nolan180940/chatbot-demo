@@ -38,9 +38,10 @@ npm run dev   # http://localhost:3000
 - ⚡ **流式响应**：SSE 逐字输出，支持「停止生成」
 - 🔑 **BYOK 模式**：仅需 `Base URL` / `API Key` / `Model ID` 三项参数
 - 🧪 **连接测试**：一键 `ping` 验证配置可用性
-- 📄 **Markdown 渲染**：代码块、表格、LaTeX 排版
+- 📄 **Markdown 渲染**：代码块、表格、GFM；**LaTeX 数学公式**（KaTeX，行内 `$...$` + 块级 `$$...$$`）
 - 💾 **会话导出**：单个会话 / 全部会话导出为 JSON
 - 📊 **Token 统计**：本地启发式估算与按会话排行
+- 📐 **响应式侧边栏**：桌面端可折叠/展开，手机端自动变为抽屉菜单（汉堡按钮 + 遮罩）
 
 ### 技术栈
 
@@ -49,7 +50,7 @@ npm run dev   # http://localhost:3000
 | 框架 | Next.js 14（App Router）+ TypeScript |
 | UI | React 18 + Tailwind CSS（夜间控制台主题） |
 | 状态 | Zustand（含 persist 中间件） |
-| Markdown | react-markdown + remark-gfm |
+| Markdown | react-markdown + remark-gfm + remark-math + rehype-katex（KaTeX 渲染 LaTeX） |
 | 字体 | Space Grotesk / IBM Plex Sans / IBM Plex Mono（next/font 自托管） |
 | 后端 | Next.js Route Handler 同源代理（无独立后端） |
 
@@ -71,7 +72,7 @@ npm run dev   # http://localhost:3000
    ▲  ④ SSE 流原样透传（剥 CORS 头、禁缓冲）
 ```
 
-**核心设计**：浏览器不直连第三方模型（规避 CORS），而是请求**同源代理** `/api/chat`，由代理转发到用户指定的 `baseUrl`。这样既统一了错误/超时处理，也**无需任何服务端环境变量** —— 密钥只存在于浏览器 localStorage。
+**核心设计**：浏览器不直连第三方模型（规避 CORS），而是请求**同源代理** `/api/chat`，由代理转发到用户指定的 `baseUrl`。这样既统一了错误/超时处理，也**无需任何服务端环境变量** —— 密钥只存在于浏览器 localStorage。点击「停止生成」时客户端会 abort 请求，代理监听 `req.signal` **同步取消上游调用**，避免模型继续生成浪费 token。
 
 ---
 
@@ -92,9 +93,11 @@ chatbot-demo/
 │   ├── chat/
 │   │   ├── ChatWindow.tsx            # 顶部状态栏 + 单会话导出 + 组合列表/输入
 │   │   ├── MessageList.tsx           # 消息滚动容器 + 空态欢迎屏
-│   │   ├── MessageItem.tsx           # 单条消息（用户 ❯ / 助手终端卡片）
+│   │   ├── MessageItem.tsx           # 单条消息（KaTeX 渲染 LaTeX）
 │   │   └── ChatInput.tsx             # 控制台式输入框（发送/停止）
-│   ├── sidebar/Sidebar.tsx           # 左栏：logo、导航、会话列表、导出全部
+│   ├── sidebar/
+│   │   ├── Sidebar.tsx               # 左栏：logo、导航、会话列表、导出全部（可折叠）
+│   │   └── SidebarLayout.tsx         # 页面外壳：桌面侧边栏 + 手机汉堡按钮/抽屉
 │   ├── settings/
 │   │   ├── SettingsPanel.tsx         # 三项参数表单 + 预设地址 + 保存
 │   │   └── ConnectionTest.tsx        # 连接测试状态卡片
@@ -110,9 +113,11 @@ chatbot-demo/
 │
 ├── store/                            # Zustand 状态
 │   ├── chat-store.ts                 # 会话/消息 CRUD + autoTitle + persist
-│   └── config-store.ts               # 三项参数 + isReady + persist
+│   ├── config-store.ts               # 三项参数 + isReady + persist
+│   └── ui-store.ts                   # 侧边栏折叠 / 手机抽屉状态（折叠偏好 persist）
 │
 ├── types/css.d.ts                    # CSS 副作用导入声明
+├── mock-server.mjs                   # 本地 mock OpenAI 服务（测试流式 / LaTeX）
 ├── PLAN.md                           # 技术实现方案
 ├── PROMPT.md                         # 逆向分析文档
 ├── README.md                         # 本文件
@@ -151,6 +156,8 @@ chatbot-demo/
 - **不可变更新**：`updateLastMessage` 用 `map` 复制数组，保证 React 重渲染
 - **错误契约**：所有错误统一为 `{ error: { code, message } }`，客户端据此展示
 - **超时**：后端 120s AbortController；连接测试 30s
+- **停止生成**：`ChatInput.stop()` 强制复位流式状态；路由监听 `req.signal` 取消上游请求
+- **LaTeX 兼容**：单行 `$$...$$` 在渲染前由 `normalizeLatex()` 转为围栏式，确保被 KaTeX 以 display 模式识别
 
 ---
 
@@ -161,8 +168,11 @@ chatbot-demo/
 ```bash
 cd chatbot-demo
 npm install
-npm run dev        # 打开 http://localhost:3000
+npm run dev          # 打开 http://localhost:3000
+node mock-server.mjs # (可选) 本地 mock 服务：http://localhost:9998
 ```
+
+> 💡 **无真实 API 也能体验**：另开一个终端运行 `node mock-server.mjs`，在「参数设置」把 Base URL 填 `http://localhost:9998`（API Key / Model 任意），即可体验 SSE 流式输出与 LaTeX 公式渲染（mock 会返回一段含洛必达法则公式的示例）。
 
 ### 使用任意兼容服务（示例）
 

@@ -129,3 +129,22 @@ body {
   border-top: 1px solid var(--border);
   margin: 1rem 0;
 }
+
+/* KaTeX 暗色主题适配 */
+.katex {
+  color: #e8ecf4;
+}
+.prose-chat .katex {
+  font-size: 1.05em;
+}
+/* 块级公式横向溢出时可滚动，避免撑破卡片 */
+.katex-display {
+  margin: 0.6rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+.katex-display::-webkit-scrollbar {
+  height: 6px;
+}
+

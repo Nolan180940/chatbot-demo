@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useChatStore } from "@/store/chat-store";
+import { useUIStore } from "@/store/ui-store";
 import { exportAllSessions } from "@/lib/export";
 import { DEFAULT_SESSION_TITLE } from "@/lib/config";
 
@@ -15,7 +16,17 @@ function timeLabel(ts: number): string {
     : d.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
 }
 
-export default function Sidebar() {
+/**
+ * 侧边栏内部内容。desktop：根据 collapsed 在宽栏/窄栏间切换；
+ * mobile 抽屉固定用完整宽栏，onToggle 负责收起抽屉。
+ */
+function SidebarContent({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const sessions = useChatStore((s) => s.sessions);
   const activeId = useChatStore((s) => s.activeSessionId);
   const createSession = useChatStore((s) => s.createSession);
@@ -29,22 +40,53 @@ export default function Sidebar() {
   const [exported, setExported] = useState(false);
 
   return (
-    <aside className="w-64 flex-shrink-0 h-full bg-ink-900 border-r border-line flex flex-col">
-      {/* Logo */}
-      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-line">
-        <div className="w-8 h-8 rounded-lg bg-gold-dim border border-gold/30 flex items-center justify-center">
-          <svg className="w-4.5 h-4.5 w-5 h-5 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M4 17l6-6-6-6M12 19h8" strokeLinecap="round" strokeLinejoin="round" />
+    <>
+      {/* Logo / 折叠按钮行 */}
+      <div
+        className={`h-14 flex items-center gap-2.5 border-b border-line flex-shrink-0 transition-all ${
+          collapsed ? "justify-center px-2" : "px-4"
+        }`}
+      >
+        {!collapsed && (
+          <>
+            <div className="w-8 h-8 rounded-lg bg-gold-dim border border-gold/30 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M4 17l6-6-6-6M12 19h8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="font-display text-sm font-semibold text-white leading-tight">
+                chatbot
+              </div>
+              <div className="font-mono text-[9px] text-dim leading-tight tracking-wider">
+                BYOK · CONSOLE
+              </div>
+            </div>
+          </>
+        )}
+        <button
+          onClick={onToggle}
+          title={collapsed ? "展开侧边栏" : "收起侧边栏"}
+          aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+          className="ml-auto flex-shrink-0 p-1.5 rounded-lg text-dim hover:text-gold hover:bg-white/5 transition-all"
+        >
+          {/* 桌面：折叠 / 展开箭头 */}
+          <svg
+            className={`w-4 h-4 hidden md:block transition-transform duration-200 ${
+              collapsed ? "rotate-180" : ""
+            }`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        </div>
-        <div className="min-w-0">
-          <div className="font-display text-sm font-semibold text-white leading-tight">
-            chatbot
-          </div>
-          <div className="font-mono text-[9px] text-dim leading-tight tracking-wider">
-            BYOK · CONSOLE
-          </div>
-        </div>
+          {/* 移动：关闭抽屉 */}
+          <svg className="w-4 h-4 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
       {/* 新建 + 导航 */}
@@ -54,52 +96,61 @@ export default function Sidebar() {
             const id = createSession();
             router.push("/chat");
           }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gold hover:bg-gold-soft text-ink-950 font-display text-sm font-semibold shadow-gold transition-all"
+          title="新建对话"
+          className={`w-full flex items-center justify-center rounded-lg bg-gold hover:bg-gold-soft text-ink-950 shadow-gold transition-all ${
+            collapsed
+              ? "h-10"
+              : "gap-2 py-2.5 font-display text-sm font-semibold"
+          }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 5v14M5 12h14" strokeLinecap="round" />
           </svg>
-          新建对话
+          {!collapsed && "新建对话"}
         </button>
 
         <button
           onClick={() => router.push("/settings")}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+          title="参数设置"
+          className={`w-full flex items-center gap-2.5 rounded-lg text-sm transition-all ${
             isSettings
               ? "bg-gold-dim text-gold border border-gold/25"
               : "text-dim hover:text-slate-100 hover:bg-white/5 border border-transparent"
-          }`}
+          } ${collapsed ? "justify-center py-2" : "px-3 py-2"}`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
-          参数设置
+          {!collapsed && "参数设置"}
         </button>
 
         <button
           onClick={() => router.push("/stats")}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+          title="数据统计"
+          className={`w-full flex items-center gap-2.5 rounded-lg text-sm transition-all ${
             isStats
               ? "bg-gold-dim text-gold border border-gold/25"
               : "text-dim hover:text-slate-100 hover:bg-white/5 border border-transparent"
-          }`}
+          } ${collapsed ? "justify-center py-2" : "px-3 py-2"}`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 20V10M12 20V4M6 20v-6" strokeLinecap="round" />
           </svg>
-          数据统计
+          {!collapsed && "数据统计"}
         </button>
       </div>
 
       {/* 会话列表 */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <div className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-dim/70">
-          history
-        </div>
+        {!collapsed && (
+          <div className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-dim/70">
+            history
+          </div>
+        )}
         {sessions.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-dim/70">
-            暂无会话，点击「新建对话」开始
+            {collapsed ? "—" : "暂无会话，点击「新建对话」开始"}
           </div>
         ) : (
           sessions.map((s) => {
@@ -107,66 +158,71 @@ export default function Sidebar() {
             return (
               <div
                 key={s.id}
-                className={`group relative flex items-center gap-2 mb-1 px-3 py-2 rounded-lg cursor-pointer text-sm transition-all ${
+                title={collapsed ? s.title : undefined}
+                className={`group relative flex items-center gap-2 mb-1 rounded-lg cursor-pointer text-sm transition-all ${
                   active
                     ? "bg-gold-dim text-slate-100 border border-gold/25"
                     : "text-dim hover:bg-white/5 hover:text-slate-200 border border-transparent"
-                }`}
+                } ${collapsed ? "justify-center py-2.5" : "px-3 py-2"}`}
                 onClick={() => {
                   useChatStore.getState().switchSession(s.id);
                   router.push("/chat");
                 }}
               >
-                <span className={`font-mono text-gold/70 flex-shrink-0 select-none`}>
+                <span className="font-mono text-gold/70 flex-shrink-0 select-none">
                   ❯
                 </span>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">
-                    {s.title === DEFAULT_SESSION_TITLE ? "（新对话）" : s.title}
-                  </div>
-                  <div className="font-mono text-[9px] text-dim/70 mt-0.5">
-                    {s.messages.length} msgs · {timeLabel(s.createdAt)}
-                  </div>
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDelete(s.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-rose-500/10 text-dim hover:text-rose-400 transition-all"
-                  title="删除会话"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
-                  </svg>
-                </button>
-
-                {confirmDelete === s.id && (
-                  <div className="absolute right-2 top-full mt-1 z-20 bg-ink-800 border border-line rounded-xl p-3 shadow-2xl w-44 animate-fade-in">
-                    <div className="text-xs text-slate-300 mb-2">删除该会话？</div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSession(s.id);
-                          setConfirmDelete(null);
-                        }}
-                        className="flex-1 px-2 py-1 text-xs rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
-                      >
-                        删除
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete(null);
-                        }}
-                        className="flex-1 px-2 py-1 text-xs rounded-md bg-white/5 text-slate-300 hover:bg-white/10"
-                      >
-                        取消
-                      </button>
+                {!collapsed && (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">
+                        {s.title === DEFAULT_SESSION_TITLE ? "（新对话）" : s.title}
+                      </div>
+                      <div className="font-mono text-[9px] text-dim/70 mt-0.5">
+                        {s.messages.length} msgs · {timeLabel(s.createdAt)}
+                      </div>
                     </div>
-                  </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDelete(s.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-rose-500/10 text-dim hover:text-rose-400 transition-all"
+                      title="删除会话"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+                      </svg>
+                    </button>
+
+                    {confirmDelete === s.id && (
+                      <div className="absolute right-2 top-full mt-1 z-20 bg-ink-800 border border-line rounded-xl p-3 shadow-2xl w-44 animate-fade-in">
+                        <div className="text-xs text-slate-300 mb-2">删除该会话？</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSession(s.id);
+                              setConfirmDelete(null);
+                            }}
+                            className="flex-1 px-2 py-1 text-xs rounded-md bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+                          >
+                            删除
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete(null);
+                            }}
+                            className="flex-1 px-2 py-1 text-xs rounded-md bg-white/5 text-slate-300 hover:bg-white/10"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -175,26 +231,79 @@ export default function Sidebar() {
       </div>
 
       {/* 底部 */}
-      <div className="px-4 py-3 border-t border-line space-y-2">
+      <div className={`py-3 border-t border-line flex-shrink-0 ${collapsed ? "flex flex-col items-center gap-2 px-2" : "px-4 space-y-2"}`}>
         <button
           onClick={() => {
             exportAllSessions();
             setExported(true);
             setTimeout(() => setExported(false), 1500);
           }}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim hover:text-slate-100 hover:bg-white/5 transition-all"
+          title="导出全部 (JSON)"
+          className={`w-full flex items-center rounded-lg text-sm text-dim hover:text-slate-100 hover:bg-white/5 transition-all ${
+            collapsed ? "justify-center py-2" : "gap-2.5 px-3 py-2"
+          }`}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {exported ? "exported ✓" : "导出全部 (JSON)"}
+          {!collapsed && (exported ? "exported ✓" : "导出全部 (JSON)")}
         </button>
-        <div className="font-mono text-[9px] text-dim/60 leading-relaxed pt-2 border-t border-line">
-          数据仅保存在本地浏览器
-          <br />
-          API Key 不会上传到服务器
-        </div>
+        {!collapsed && (
+          <div className="font-mono text-[9px] text-dim/60 leading-relaxed pt-2 border-t border-line">
+            数据仅保存在本地浏览器
+            <br />
+            API Key 不会上传到服务器
+          </div>
+        )}
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar() {
+  const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  const mobileOpen = useUIStore((s) => s.sidebarMobileOpen);
+  const toggleCollapsed = useUIStore((s) => s.toggleCollapsed);
+  const setMobileOpen = useUIStore((s) => s.setMobileOpen);
+  const pathname = usePathname();
+
+  // 路由变化时自动关闭移动端抽屉
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
+
+  return (
+    <>
+      {/* 桌面端：可折叠窄栏 / 宽栏 */}
+      <aside
+        className={`hidden md:flex flex-col h-full bg-ink-900 border-r border-line flex-shrink-0 transition-[width] duration-200 ${
+          collapsed ? "w-16" : "w-64"
+        }`}
+      >
+        <SidebarContent collapsed={collapsed} onToggle={toggleCollapsed} />
+      </aside>
+
+      {/* 移动端：抽屉 + 遮罩 */}
+      <div
+        className={`md:hidden fixed inset-0 z-50 ${
+          mobileOpen ? "" : "pointer-events-none"
+        }`}
+        aria-hidden={!mobileOpen}
+      >
+        <div
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+            mobileOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMobileOpen(false)}
+        />
+        <aside
+          className={`absolute inset-y-0 left-0 w-64 max-w-[80vw] bg-ink-900 border-r border-line shadow-2xl flex flex-col transition-transform duration-200 ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <SidebarContent collapsed={false} onToggle={() => setMobileOpen(false)} />
+        </aside>
+      </div>
+    </>
   );
 }

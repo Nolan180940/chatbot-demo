@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useChatStore } from "@/store/chat-store";
 import {
   estimateMessageTokens,
@@ -116,13 +116,43 @@ function StatCard({
 }
 
 export default function StatsPanel() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const stats = useMemo(computeStats, []);
   const router = useRouter();
 
   const maxTokens = Math.max(1, ...stats.perSession.map((s) => s.tokens));
 
+  // SSR / 首次水合时渲染与服务端一致的空态，避免 hydration mismatch
+  // （persist 的会话数据只在浏览器端可用）
+  if (!mounted) {
+    return (
+      <div className="mx-auto max-w-3xl pl-14 pr-4 py-8 md:px-4">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-xl font-semibold text-white mb-1">
+              数据统计
+            </h1>
+            <p className="text-sm text-dim">
+              Token 消耗为本地估算值，仅供参考
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/chat")}
+            className="font-mono text-xs px-3 py-1.5 rounded-lg border border-line text-dim hover:text-white hover:border-gold/40 transition-all"
+          >
+            ← back
+          </button>
+        </div>
+        <div className="rounded-xl border border-line bg-ink-900 p-10 text-center text-dim">
+          暂无数据，先去聊几句吧
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl pl-14 pr-4 py-8 md:px-4">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-xl font-semibold text-white mb-1">

@@ -1,15 +1,14 @@
 "use client";
 
-import Sidebar from "@/components/sidebar/Sidebar";
+import SidebarLayout from "@/components/sidebar/SidebarLayout";
 import StatsPanel from "@/components/stats/StatsPanel";
 
 export default function StatsPage() {
   return (
-    <div className="flex h-screen overflow-hidden app-ambient">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+    <SidebarLayout>
+      <main className="flex-1 overflow-y-auto min-w-0">
         <StatsPanel />
       </main>
-    </div>
+    </SidebarLayout>
   );
 }

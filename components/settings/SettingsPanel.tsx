@@ -54,7 +54,7 @@ export default function SettingsPanel() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl pl-14 pr-4 py-8 md:px-4">
       <div className="mb-6">
         <h1 className="font-display text-xl font-semibold text-white mb-1">
           参数设置

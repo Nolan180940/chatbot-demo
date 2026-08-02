@@ -57,9 +57,13 @@ export async function POST(req: NextRequest) {
 
   const url = `${normalizedBase}/v1/chat/completions`;
 
-  // 5. 超时控制
+  // 5. 超时控制 + 客户端断开时取消上游请求
+  //    （用户点击“停止生成”会 abort 客户端的 fetch，这里同步取消上游，
+  //    避免模型继续生成浪费 token）
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onClientAbort = () => controller.abort();
+  req.signal.addEventListener("abort", onClientAbort);
 
   try {
     const upstream = await fetch(url, {
@@ -115,6 +119,9 @@ export async function POST(req: NextRequest) {
       { error: { code: "network_error", message: e?.message ?? "网络错误" } },
       502,
     );
+  } finally {
+    clearTimeout(timeoutId);
+    req.signal.removeEventListener("abort", onClientAbort);
   }
 }
 

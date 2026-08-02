@@ -64,7 +64,11 @@ export default function ChatInput({
   };
 
   const stop = () => {
+    // 终止当前请求；即使没有可终止的请求（例如刷新后残留的 streaming 标记），
+    // 也强制复位流式状态，让红色按钮能正常切回发送按钮。
     abortRef.current?.abort();
+    abortRef.current = null;
+    useChatStore.getState().setStreaming(sessionId, false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

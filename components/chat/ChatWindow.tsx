@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useChatStore } from "@/store/chat-store";
 import { useConfigStore } from "@/store/config-store";
 import { exportSession } from "@/lib/export";
@@ -13,12 +13,17 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
   const ready = useConfigStore((s) => !!s.baseUrl && !!s.apiKey && !!s.model);
   const [exported, setExported] = useState(false);
 
+  // 清除持久化状态下可能残留的 streaming 标记（例如刷新中断的会话）
+  useEffect(() => {
+    useChatStore.getState().setStreaming(sessionId, false);
+  }, [sessionId]);
+
   if (!session) return null;
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* 顶部状态栏 */}
-      <header className="h-14 flex items-center justify-between px-5 border-b border-line bg-ink-900/60 backdrop-blur">
+      <header className="h-14 flex items-center justify-between pl-14 pr-5 md:pl-5 border-b border-line bg-ink-900/60 backdrop-blur">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-dim flex-shrink-0">
             session
