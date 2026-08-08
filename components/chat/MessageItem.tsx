@@ -32,9 +32,11 @@ function CopyButton({ text }: { text: string }) {
 
 /**
  * remark-math 只把「$$ 独占一行、内容在中间、再 $$ 独占一行」的围栏式写法
- * 识别为块级公式；单行 `$$...$$` 会被当成行内公式（甚至原样输出）。
- * 这里把常见的单行 `$$...$$`（以及 `\[...\]`）统一转成围栏式块级公式，
- * 让 KaTeX 以 display 模式渲染。
+ * 识别为块级公式；单行 `$$...$$` / `\[...\]` 会被当成行内或原样输出，
+ * `\(...\)` 这种行内分隔符则完全不被识别。
+ * 这里在渲染前做归一化，让 KaTeX 正确识别：
+ * - `\[ ... \]` / `$$...$$`（块级）→ 围栏式 `$$\n...\n$$`（display 模式）
+ * - `\( ... \)`（行内）→ `$...$`（inline 模式）
  */
 function normalizeLatex(md: string): string {
   let out = md;
@@ -42,6 +44,11 @@ function normalizeLatex(md: string): string {
   out = out.replace(/\\\[([\s\S]+?)\\\]/g, (_m, inner: string) => {
     const v = inner.replace(/\n{2,}/g, "\n").trim();
     return v ? `$$\n${v}\n$$` : _m;
+  });
+  // \( ... \) → 行内 $...$
+  out = out.replace(/\\\(([\s\S]+?)\\\)/g, (_m, inner: string) => {
+    const v = inner.replace(/\s+/g, " ").trim();
+    return v ? `$${v}$` : _m;
   });
   // 单行 / 行内 $$...$$ → 围栏式块级公式
   out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_m, inner: string) => {

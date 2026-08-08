@@ -3,7 +3,7 @@
 > 自带 API Key 的极简 Chatbot 应用：配置三项参数即可连接任意 OpenAI 兼容服务。
 > 定位为 [NextChat](https://github.com/ChatGPTNextWeb/NextChat) 的**简化版** —— 无用户系统、无插件、无多模型管理，只聚焦「聊天 + 配置」。
 
-![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange) [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel)](https://chatbot-eight-theta-30.vercel.app/chat)
+![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange) ![electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white) [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel)](https://chatbot-eight-theta-30.vercel.app/chat)
 
 ## 🚀 在线 Demo
 
@@ -25,8 +25,11 @@
 git clone https://github.com/Nolan180940/chatbot-demo.git
 cd chatbot-demo
 npm install
-npm run dev   # http://localhost:3000
+npm run dev          # Web 开发：http://localhost:3000
+npm run electron:dev # 桌面端开发：自动拉起 Next + Electron 窗口
 ```
+
+> 📘 **打包 / 调试教程**：见 [USER-SETUP.md](./USER-SETUP.md)（含如何把桌面版打包成 Windows 安装包）。
 
 ---
 
@@ -42,6 +45,7 @@ npm run dev   # http://localhost:3000
 - 💾 **会话导出**：单个会话 / 全部会话导出为 JSON
 - 📊 **Token 统计**：本地启发式估算与按会话排行
 - 📐 **响应式侧边栏**：桌面端可折叠/展开，手机端自动变为抽屉菜单（汉堡按钮 + 遮罩）
+- 🖥️ **桌面应用**：Electron 封装同一套代码，可打包 Windows 安装包（NSIS .exe），无需浏览器
 
 ### 技术栈
 
@@ -53,6 +57,7 @@ npm run dev   # http://localhost:3000
 | Markdown | react-markdown + remark-gfm + remark-math + rehype-katex（KaTeX 渲染 LaTeX） |
 | 字体 | Space Grotesk / IBM Plex Sans / IBM Plex Mono（next/font 自托管） |
 | 后端 | Next.js Route Handler 同源代理（无独立后端） |
+| 桌面端 | Electron 33 + electron-builder（Windows NSIS 安装包） |
 
 ---
 
@@ -73,6 +78,21 @@ npm run dev   # http://localhost:3000
 ```
 
 **核心设计**：浏览器不直连第三方模型（规避 CORS），而是请求**同源代理** `/api/chat`，由代理转发到用户指定的 `baseUrl`。这样既统一了错误/超时处理，也**无需任何服务端环境变量** —— 密钥只存在于浏览器 localStorage。点击「停止生成」时客户端会 abort 请求，代理监听 `req.signal` **同步取消上游调用**，避免模型继续生成浪费 token。
+
+### 桌面端（Electron 封装）
+
+同一套 Next.js 应用被 Electron 复用为桌面程序：
+
+```
+Electron 主进程 (electron/main.js)
+   │  ① 启动 Next.js standalone 服务（.next/standalone/server.js，纯 Node 运行）
+   ▼
+BrowserWindow 加载 http://127.0.0.1:<随机端口>  ← 渲染同一套 Web UI
+```
+
+- 桌面版**复用完全相同的前端代码**，只是用系统窗口承载，数据仍存浏览器 localStorage
+- `next.config.mjs` 的 `output: "standalone"` 让 `next build` 额外产出可独立运行的 Node 服务；**与 Vercel 网页部署兼容，互不影响**
+- 打包链路：`next build` → `scripts/copy-standalone.mjs` 拷贝静态资源 → `electron-builder` 产出 NSIS 安装包
 
 ---
 
@@ -117,6 +137,10 @@ chatbot-demo/
 │   └── ui-store.ts                   # 侧边栏折叠 / 手机抽屉状态（折叠偏好 persist）
 │
 ├── types/css.d.ts                    # CSS 副作用导入声明
+├── electron/                         # Electron 桌面壳（main.js 主进程 + preload.js）
+├── scripts/
+│   └── copy-standalone.mjs           # 把 .next/static、public 拷入 standalone 产物
+├── electron-builder.yml              # 桌面打包配置（Windows NSIS 安装包）
 ├── mock-server.mjs                   # 本地 mock OpenAI 服务（测试流式 / LaTeX）
 ├── PLAN.md                           # 技术实现方案
 ├── PROMPT.md                         # 逆向分析文档
@@ -168,11 +192,13 @@ chatbot-demo/
 ```bash
 cd chatbot-demo
 npm install
-npm run dev          # 打开 http://localhost:3000
+npm run dev          # Web 开发：http://localhost:3000
+npm run electron:dev # 桌面端开发（自动启动 Next + Electron 窗口）
+npm run dist         # 打包 Windows 安装包（产物在 release/，详见 USER-SETUP.md）
 node mock-server.mjs # (可选) 本地 mock 服务：http://localhost:9998
 ```
 
-> 💡 **无真实 API 也能体验**：另开一个终端运行 `node mock-server.mjs`，在「参数设置」把 Base URL 填 `http://localhost:9998`（API Key / Model 任意），即可体验 SSE 流式输出与 LaTeX 公式渲染（mock 会返回一段含洛必达法则公式的示例）。
+> 💡 **无真实 API 也能体验**：另开一个终端运行 `node mock-server.mjs`，在「参数设置」把 Base URL 填 `http://localhost:9998`（API Key / Model 任意）。mock 为**回显模式**：把你输入的内容原样流式返回，方便调试任意内容的渲染（含 LaTeX：`\(...\)`、`\[...\]`、`$...$`、`$$...$$` 均已支持）。
 
 ### 使用任意兼容服务（示例）
 
@@ -208,6 +234,9 @@ node mock-server.mjs # (可选) 本地 mock 服务：http://localhost:9998
 | `next build` 与 `next dev` | 不要同时运行（共用 `.next` 目录），切换时先停掉另一个 |
 | 字体加载 | `next/font/google` 首次构建需联网下载字体，之后自托管 |
 | SSRF 限制 | 代理仅放行 `http/https` 协议，防止内网地址探测 |
+| 网页版 vs 桌面版 | Electron 只复用前端代码；`electron/`、`electron-builder.yml` 是开发期资源，**不影响 Vercel 网页部署**（`output: "standalone"` 与 Vercel 兼容，已用 `npm run build` 验证） |
+| 桌面打包失败 / Electron 下载慢 | 见 [USER-SETUP.md](./USER-SETUP.md)「常见问题」；国内可配置 Electron 镜像 |
+| `.npmrc` | 本地 `cache` 指向 Windows 绝对路径，仅本地生效；若 Vercel 构建异常，优先删除/调整该文件 |
 
 ---
 

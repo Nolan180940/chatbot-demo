@@ -20,17 +20,14 @@ const server = http.createServer((req, res) => {
       "Cache-Control": "no-cache",
     });
 
-    const chunks = [
-      "好的，我来介绍**洛必达法则**（L'Hôpital's rule）。\n\n",
-      "对于极限 $\\lim_{x \\to a} \\frac{f(x)}{g(x)}$，若满足：\n\n",
-      "$$\\lim_{x \\to a} f(x) = 0 \\quad \\text{且} \\quad \\lim_{x \\to a} g(x) = 0$$\n\n",
-      "且 $g'(x) \\neq 0$，则：\n\n",
-      "$$\\lim_{x \\to a} \\frac{f(x)}{g(x)} = \\lim_{x \\to a} \\frac{f'(x)}{g'(x)}$$\n\n",
-      "例如：$\\lim_{x \\to 0} \\frac{\\sin x}{x} = \\lim_{x \\to 0} \\frac{\\cos x}{1} = 1$。\n",
-      "你说的是：“",
-      lastUser,
-      "”。流式测试完成！",
-    ];
+    // 回显模式：把最后一条用户消息原样流式返回，方便前端调试任意内容（含 LaTeX）的渲染
+    const fallback =
+      "**回显模式**：本 mock 会把你的输入原样返回。可粘贴一段含 LaTeX 的内容，例如：\n\n" +
+      "\\(\\lim_{x\\to 0}\\frac{\\sin x}{x}=1\\) 以及\n\n" +
+      "\\[\\boxed{\\lim_{x\\to a}\\frac{f(x)}{g(x)}=\\lim_{x\\to a}\\frac{f'(x)}{g'(x)}}\\]";
+    const text = lastUser || fallback;
+    // 按小块切分模拟逐字输出
+    const chunks = text.match(/[\s\S]{1,24}/g) ?? [];
     let i = 0;
     const timer = setInterval(() => {
       if (i < chunks.length) {

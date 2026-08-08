@@ -1,0 +1,19 @@
+appId: com.chatbot-demo.app
+productName: Chatbot Demo
+directories:
+  output: release
+files:
+  - electron/**/*
+extraResources:
+  - from: .next/standalone
+    to: server
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Chatbot Demo
