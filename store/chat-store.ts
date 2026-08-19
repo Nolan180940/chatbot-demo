@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { ChatMessage, Session } from "@/lib/types";
+import type { ActiveSkill, ChatMessage, Session } from "@/lib/types";
 import { DEFAULT_SESSION_TITLE } from "@/lib/config";
 
 function uid(): string {
@@ -30,6 +30,8 @@ interface ChatState {
   setStreaming: (sessionId: string, streaming: boolean) => void;
   /** 首条用户消息后自动生成会话标题 */
   autoTitle: (sessionId: string) => void;
+  /** 设置/清除会话级激活的 SKILL（持久化，刷新不丢） */
+  setActiveSkill: (sessionId: string, skill: ActiveSkill | null) => void;
   clearAll: () => void;
 }
 
@@ -47,6 +49,7 @@ export const useChatStore = create<ChatState>()(
           createdAt: Date.now(),
           messages: [],
           streaming: false,
+          activeSkill: null,
         };
         set((s) => ({
           sessions: [session, ...s.sessions],
@@ -104,6 +107,13 @@ export const useChatStore = create<ChatState>()(
             const title = raw.length > 20 ? raw.slice(0, 20) + "…" : raw;
             return { ...sess, title: title || DEFAULT_SESSION_TITLE };
           }),
+        })),
+
+      setActiveSkill: (sessionId, skill) =>
+        set((s) => ({
+          sessions: s.sessions.map((sess) =>
+            sess.id === sessionId ? { ...sess, activeSkill: skill } : sess,
+          ),
         })),
 
       clearAll: () => set({ sessions: [], activeSessionId: null }),

@@ -1,5 +1,5 @@
 // SKILL 调用（invoke）单元测试：node scripts/test-invoke.mjs
-import { parseSkillCommand, extractSection, skillContentForMode, buildSkillMessages } from "../lib/skill/invoke.ts";
+import { parseSkillCommand, extractSection, skillContentForMode, buildSkillMessages, resolveSkillForSend } from "../lib/skill/invoke.ts";
 
 let pass = 0;
 let fail = 0;
@@ -129,6 +129,33 @@ check("消息数 = 历史数 + 1", msgs.length, history.length + 1);
 const invEmpty = parseSkillCommand("/colleague_kongzi", [doc]);
 const msgs2 = buildSkillMessages(invEmpty, [{ role: "user", content: "/colleague_kongzi" }]);
 check("空问题默认问候", msgs2[msgs2.length - 1].content, "你好，请介绍一下你自己");
+
+// 11. resolveSkillForSend：会话级记忆
+const active = { slug: "colleague_kongzi", displayName: "孔子", mode: "full" };
+
+const r1 = resolveSkillForSend("再问一个", [doc], active);
+check("无命令+已激活 → 自动注入", r1.inv !== null && r1.inv.question === "再问一个", true);
+check("无命令+已激活 → 注入的是激活的 SKILL", r1.inv && r1.inv.slug, "colleague_kongzi");
+check("无命令+已激活 → nextActive 保持", JSON.stringify(r1.nextActive), JSON.stringify(active));
+
+const r2 = resolveSkillForSend("/colleague_kongzi-work 讲学", [doc], active);
+check("新命令 → nextActive 更新为 work", r2.nextActive && r2.nextActive.mode, "work");
+check("新命令 → 注入新命令", r2.inv && r2.inv.mode, "work");
+
+const r3 = resolveSkillForSend("/unknown 你好", [doc], active);
+check("未命中命令 → 不注入", r3.inv, null);
+check("未命中命令 → 激活保持", JSON.stringify(r3.nextActive), JSON.stringify(active));
+
+const r4 = resolveSkillForSend("你好", [doc], null);
+check("无激活无命令 → 普通消息", r4.inv, null);
+check("无激活无命令 → nextActive null", r4.nextActive, null);
+
+const r5 = resolveSkillForSend("你好", [], active);
+check("SKILL 已删除 → 清除激活", r5.nextActive, null);
+check("SKILL 已删除 → 不注入", r5.inv, null);
+
+const r6 = resolveSkillForSend("/colleague_kongzi 你是谁", [doc], null);
+check("命令激活 → nextActive 写入", JSON.stringify(r6.nextActive), JSON.stringify(active));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

@@ -5,7 +5,7 @@ import { useChatStore } from "@/store/chat-store";
 import { useConfigStore } from "@/store/config-store";
 import { useSkillStore } from "@/store/skill-store";
 import { streamChat } from "@/lib/llm";
-import { parseSkillCommand, buildSkillMessages } from "@/lib/skill/invoke";
+import { buildSkillMessages, resolveSkillForSend } from "@/lib/skill/invoke";
 import { TYPE_LABELS } from "@/lib/skill/schema";
 import { useRouter } from "next/navigation";
 
@@ -24,7 +24,11 @@ export default function ChatInput({
   // ── 斜杠命令选择器状态 ──
   const [showPicker, setShowPicker] = useState(false);
   const [pickerIndex, setPickerIndex] = useState(0);
-  const [activeSkill, setActiveSkill] = useState<{ slug: string; displayName: string } | null>(null);
+
+  // 会话级激活的 SKILL（持久化在 session 上，激活后无需重复 / 调用）
+  const activeSkill = useChatStore(
+    (s) => s.sessions.find((x) => x.id === sessionId)?.activeSkill ?? null,
+  );
 
   // 输入以 / 开头且无空格时，弹出匹配的 SKILL 列表
   const pickerDocs = useMemo(() => {
@@ -52,7 +56,6 @@ export default function ChatInput({
     store.appendMessage(sessionId, "assistant", "");
     store.autoTitle(sessionId);
     setInput("");
-    setActiveSkill(null);
 
     // 构造历史（含刚追加的用户消息）
     const session = useChatStore
@@ -63,9 +66,15 @@ export default function ChatInput({
       content: m.content,
     }));
 
-    // SKILL 命令：解析并注入 system 消息
-    const inv = parseSkillCommand(text, useSkillStore.getState().docs);
+    // SKILL：解析 / 命令，或复用会话级激活的 SKILL，注入 system 消息
+    const { inv, nextActive } = resolveSkillForSend(
+      text,
+      useSkillStore.getState().docs,
+      activeSkill,
+    );
     const messages = inv ? buildSkillMessages(inv, history) : history;
+    // 持久化激活状态（会话记忆：后续消息自动携带 SKILL）
+    useChatStore.getState().setActiveSkill(sessionId, nextActive);
 
     try {
       await streamChat(
@@ -104,9 +113,16 @@ export default function ChatInput({
   };
 
   const pickSkill = (slug: string) => {
+    const meta = skillDocs.find((d) => d.meta.slug === slug)?.meta;
+    if (!meta) return;
     setInput(`/${slug} `);
     setShowPicker(false);
-    setActiveSkill(skillDocs.find((d) => d.meta.slug === slug)?.meta ?? null);
+    // 立即激活到会话（持久化），发送后自动注入
+    useChatStore.getState().setActiveSkill(sessionId, {
+      slug: meta.slug,
+      displayName: meta.displayName,
+      mode: "full",
+    });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -188,7 +204,7 @@ export default function ChatInput({
               <span className="text-xs text-dim truncate">{activeSkill.displayName}</span>
               <button
                 onClick={() => {
-                  setActiveSkill(null);
+                  useChatStore.getState().setActiveSkill(sessionId, null);
                   setInput((v) => v.replace(/^\/[^\s]*\s*/, ""));
                 }}
                 className="text-dim hover:text-rose-400 text-xs transition-colors"

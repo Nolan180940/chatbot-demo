@@ -1,5 +1,6 @@
 import type { SkillDoc } from "./types";
 import type { LLMHistoryItem } from "@/lib/llm";
+import type { ActiveSkill } from "@/lib/types";
 
 /** SKILL 调用模式：完整 / 仅工作能力 / 仅人格 */
 export type SkillInvokeMode = "full" | "work" | "persona";
@@ -82,4 +83,46 @@ export function buildSkillMessages(
     msgs.push({ role: "user", content: question });
   }
   return [systemMsg, ...msgs];
+}
+
+/**
+ * 统一决策：发送一条消息时如何注入 SKILL
+ * - 命中 / 命令 → 解析并返回应激活的 SKILL（写入会话记忆）
+ * - 无命令但有会话级 activeSkill → 自动注入该 SKILL（无需重复 / 调用）
+ * - 以 / 开头但未命中任何 SKILL → 普通消息，激活状态保持不变
+ * - 激活的 SKILL 已被删除 → 清除激活状态
+ */
+export function resolveSkillForSend(
+  text: string,
+  docs: SkillDoc[],
+  activeSkill: ActiveSkill | null,
+): { inv: SkillInvocation | null; nextActive: ActiveSkill | null } {
+  const trimmed = text.trim();
+  const inv = parseSkillCommand(trimmed, docs);
+  if (inv) {
+    return {
+      inv,
+      nextActive: {
+        slug: inv.slug,
+        displayName: inv.doc.meta.displayName,
+        mode: inv.mode,
+      },
+    };
+  }
+  if (trimmed.startsWith("/")) {
+    // 未命中的命令：当作普通消息，不改变激活状态
+    return { inv: null, nextActive: activeSkill };
+  }
+  if (activeSkill) {
+    const doc = docs.find((d) => d.meta.slug === activeSkill.slug);
+    if (doc) {
+      return {
+        inv: { slug: activeSkill.slug, mode: activeSkill.mode, question: trimmed, doc },
+        nextActive: activeSkill,
+      };
+    }
+    // SKILL 已删除 → 清除激活
+    return { inv: null, nextActive: null };
+  }
+  return { inv: null, nextActive: null };
 }
