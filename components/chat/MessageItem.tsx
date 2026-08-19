@@ -65,7 +65,7 @@ function normalizeLatex(md: string): string {
     if (lastIdx !== -1) {
       let rest = out.slice(lastIdx + 2).replace(/\n{2,}/g, "\n").trim();
       // 剥离公式尾随的中文正文（如「未闭合结尾」），避免混入 KaTeX
-      const tailMatch = rest.match(/([\u4e00-\u9fff\uff00-\uffef\u3000-\u303f].*)$/s);
+      const tailMatch = rest.match(/([\u4e00-\u9fff\uff00-\uffef\u3000-\u303f][\s\S]*)$/);
       const tail = tailMatch?.[1] ?? "";
       if (tail) rest = rest.slice(0, rest.length - tail.length).trim();
       if (rest) {
