@@ -72,11 +72,18 @@ const server = http.createServer((req, res) => {
           }) +
           "```";
       }
+    } else if (allPrompt.includes("你正在使用 SKILL")) {
+      // SKILL 调用模式：system 注入了 SKILL.md → 以孔子口吻回复
+      text =
+        "（mock · 孔子 SKILL 已生效）\n\n" +
+        "学而时习之，不亦说乎？\n\n" +
+        "你方才所问，吾已思之。以「仁」为本，以「礼」为纲，此事当如此处之：\n\n" +
+        "1. 先明其义，再行其道；\n" +
+        "2. 不义而富且贵，于我如浮云；\n" +
+        "3. 君子和而不同，小人同而不和。\n\n" +
+        "—— 孔丘 谨答";
     }
     // 按小块切分模拟逐字输出
-    if (allPrompt.includes("colleague-skill") && allPrompt.includes("生成完整的 SKILL.md")) {
-      console.log("[mock] SKILL text length:", text.length, "ends with ```:", text.endsWith("```"), "last10:", JSON.stringify(text.slice(-10)));
-    }
     const chunks = text.match(/[\s\S]{1,24}/g) ?? [];
     let i = 0;
     const timer = setInterval(() => {

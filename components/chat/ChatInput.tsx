@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat-store";
 import { useConfigStore } from "@/store/config-store";
+import { useSkillStore } from "@/store/skill-store";
 import { streamChat } from "@/lib/llm";
+import { parseSkillCommand, buildSkillMessages } from "@/lib/skill/invoke";
+import { TYPE_LABELS } from "@/lib/skill/schema";
 import { useRouter } from "next/navigation";
 
 export default function ChatInput({
@@ -16,6 +19,21 @@ export default function ChatInput({
   const [input, setInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const router = useRouter();
+  const skillDocs = useSkillStore((s) => s.docs);
+
+  // ── 斜杠命令选择器状态 ──
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerIndex, setPickerIndex] = useState(0);
+  const [activeSkill, setActiveSkill] = useState<{ slug: string; displayName: string } | null>(null);
+
+  // 输入以 / 开头且无空格时，弹出匹配的 SKILL 列表
+  const pickerDocs = useMemo(() => {
+    if (!showPicker) return [];
+    const q = input.slice(1).toLowerCase();
+    return skillDocs.filter(
+      (d) => d.meta.slug.includes(q) || d.meta.displayName.toLowerCase().includes(q),
+    );
+  }, [showPicker, input, skillDocs]);
 
   const send = async () => {
     const text = input.trim();
@@ -34,6 +52,7 @@ export default function ChatInput({
     store.appendMessage(sessionId, "assistant", "");
     store.autoTitle(sessionId);
     setInput("");
+    setActiveSkill(null);
 
     // 构造历史（含刚追加的用户消息）
     const session = useChatStore
@@ -44,9 +63,13 @@ export default function ChatInput({
       content: m.content,
     }));
 
+    // SKILL 命令：解析并注入 system 消息
+    const inv = parseSkillCommand(text, useSkillStore.getState().docs);
+    const messages = inv ? buildSkillMessages(inv, history) : history;
+
     try {
       await streamChat(
-        history,
+        messages,
         (delta) => useChatStore.getState().updateLastMessage(sessionId, delta),
         abort.signal,
       );
@@ -71,7 +94,45 @@ export default function ChatInput({
     useChatStore.getState().setStreaming(sessionId, false);
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value;
+    setInput(v);
+    // 仅当输入形如 /xxx（无空格）时显示选择器
+    const isCmd = /^\/[^\s]*$/.test(v);
+    setShowPicker(isCmd && v.length > 1);
+    setPickerIndex(0);
+  };
+
+  const pickSkill = (slug: string) => {
+    setInput(`/${slug} `);
+    setShowPicker(false);
+    setActiveSkill(skillDocs.find((d) => d.meta.slug === slug)?.meta ?? null);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 选择器键盘导航优先
+    if (showPicker && pickerDocs.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPickerIndex((i) => (i + 1) % pickerDocs.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPickerIndex((i) => (i - 1 + pickerDocs.length) % pickerDocs.length);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        pickSkill(pickerDocs[pickerIndex].meta.slug);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowPicker(false);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       send();
@@ -81,19 +142,78 @@ export default function ChatInput({
   return (
     <div className="border-t border-line bg-ink-950/80 backdrop-blur px-4 py-3">
       <div className="mx-auto max-w-3xl">
-        <div className="relative flex items-end gap-2 rounded-xl border border-line bg-ink-900 focus-within:border-gold/50 focus-within:shadow-gold transition-all px-3 py-2.5">
-          {/* 命令提示符 */}
-          <span className="font-mono text-gold select-none pb-2.5 text-sm">❯</span>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={
-              streaming ? "正在生成…" : "输入消息，Enter 发送，Shift+Enter 换行"
-            }
-            rows={Math.min(Math.max(input.split("\n").length, 1), 6)}
-            className="flex-1 bg-transparent outline-none resize-none text-[15px] text-slate-100 placeholder:text-dim/60 font-mono placeholder:font-sans"
-          />
+        <div className="relative">
+          {/* 斜杠命令选择器 */}
+          {showPicker && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-line bg-panel shadow-2xl overflow-hidden z-20">
+              {pickerDocs.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-dim">
+                  {skillDocs.length === 0
+                    ? "SKILL 库为空，先去「SKILL 库」导入或创建"
+                    : "没有匹配的 SKILL"}
+                </div>
+              ) : (
+                <ul className="max-h-64 overflow-y-auto py-1">
+                  {pickerDocs.map((d, i) => (
+                    <li key={d.id}>
+                      <button
+                        onClick={() => pickSkill(d.meta.slug)}
+                        onMouseEnter={() => setPickerIndex(i)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
+                          i === pickerIndex ? "bg-gold-dim text-gold" : "text-slate-200"
+                        }`}
+                      >
+                        <span className="font-mono text-xs text-gold shrink-0">/{d.meta.slug}</span>
+                        <span className="truncate flex-1">{d.meta.displayName}</span>
+                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-gold/30 text-gold">
+                          {TYPE_LABELS[d.meta.type]}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="px-4 py-1.5 border-t border-line text-[10px] text-dim font-mono">
+                ↑↓ 选择 · Enter 确认 · Esc 关闭
+              </div>
+            </div>
+          )}
+
+          {/* 已选 SKILL 徽章 */}
+          {activeSkill && (
+            <div className="mb-2 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono border border-gold/30 text-gold bg-gold-dim">
+                🧩 /{activeSkill.slug}
+              </span>
+              <span className="text-xs text-dim truncate">{activeSkill.displayName}</span>
+              <button
+                onClick={() => {
+                  setActiveSkill(null);
+                  setInput((v) => v.replace(/^\/[^\s]*\s*/, ""));
+                }}
+                className="text-dim hover:text-rose-400 text-xs transition-colors"
+                title="取消 SKILL"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className="relative flex items-end gap-2 rounded-xl border border-line bg-ink-900 focus-within:border-gold/50 focus-within:shadow-gold transition-all px-3 py-2.5">
+            {/* 命令提示符 */}
+            <span className="font-mono text-gold select-none pb-2.5 text-sm">❯</span>
+            <textarea
+              value={input}
+              onChange={handleChange}
+              onKeyDown={onKeyDown}
+              placeholder={
+                streaming
+                  ? "正在生成…"
+                  : "输入消息，Enter 发送，Shift+Enter 换行；输入 / 调用 SKILL"
+              }
+              rows={Math.min(Math.max(input.split("\n").length, 1), 6)}
+              className="flex-1 bg-transparent outline-none resize-none text-[15px] text-slate-100 placeholder:text-dim/60 font-mono placeholder:font-sans"
+            />
 
           {streaming ? (
             <button
@@ -118,6 +238,7 @@ export default function ChatInput({
               </svg>
             </button>
           )}
+        </div>
         </div>
         <p className="mt-2 text-center font-mono text-[10px] text-dim/70">
           AI 生成内容仅供参考 · 密钥仅保存在本浏览器
