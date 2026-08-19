@@ -1,5 +1,10 @@
-// 本地 mock OpenAI 兼容服务器，用于验证 /api/chat 代理
+// 本地 mock 服务器，用于验证 /api/chat 代理（不花一分钱测三种协议）
 // 启动：node mock-server.mjs （监听 9998）
+//
+// 支持三种端点（按请求路径自动识别）：
+//   POST /v1/chat/completions  → OpenAI chat 格式 SSE
+//   POST /v1/responses         → OpenAI responses 格式 SSE
+//   POST /v1/messages          → Anthropic messages 格式 SSE
 import http from "node:http";
 
 const server = http.createServer((req, res) => {
@@ -7,10 +12,26 @@ const server = http.createServer((req, res) => {
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     let lastUser = "";
+    let kind = "chat";
     try {
       const parsed = JSON.parse(body);
-      const msgs = parsed?.messages ?? [];
-      lastUser = msgs.filter((m) => m.role === "user").pop()?.content ?? "";
+      const path = req.url ?? "";
+      if (path.endsWith("/responses")) {
+        kind = "responses";
+        // responses 格式：input[].content 是数组（input_text 块）
+        const input = parsed?.input ?? [];
+        const last = input.filter((m) => m.role === "user").pop();
+        lastUser = Array.isArray(last?.content)
+          ? last.content.map((p) => p.text ?? "").join("")
+          : last?.content ?? "";
+      } else if (path.endsWith("/messages")) {
+        kind = "messages";
+        const msgs = parsed?.messages ?? [];
+        lastUser = msgs.filter((m) => m.role === "user").pop()?.content ?? "";
+      } else {
+        const msgs = parsed?.messages ?? [];
+        lastUser = msgs.filter((m) => m.role === "user").pop()?.content ?? "";
+      }
     } catch {
       /* ignore */
     }
@@ -32,9 +53,18 @@ const server = http.createServer((req, res) => {
     const timer = setInterval(() => {
       if (i < chunks.length) {
         const delta = chunks[i++];
-        res.write(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: delta } }] })}\n\n`,
-        );
+        let event = "";
+        if (kind === "responses") {
+          event = `data: ${JSON.stringify({ type: "response.output_text.delta", delta })}\n\n`;
+        } else if (kind === "messages") {
+          event = `data: ${JSON.stringify({
+            type: "content_block_delta",
+            delta: { type: "text_delta", text: delta },
+          })}\n\n`;
+        } else {
+          event = `data: ${JSON.stringify({ choices: [{ delta: { content: delta } }] })}\n\n`;
+        }
+        res.write(event);
       } else {
         res.write("data: [DONE]\n\n");
         clearInterval(timer);
@@ -45,5 +75,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(9998, () => {
-  console.log("mock server on http://localhost:9998");
+  console.log(
+    "mock server on http://localhost:9998 (chat/completions | responses | messages)",
+  );
 });

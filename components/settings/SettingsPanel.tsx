@@ -69,7 +69,7 @@ export default function SettingsPanel() {
         <Field
           label="base_url"
           code
-          desc="例如 https://api.openai.com、https://api.deepseek.com，或以 /v1 结尾的自定义地址。"
+          desc="支持三种形式：① 只填域名（自动补 /v1/chat/completions）② 完整端点，如 https://opencode.ai/zen/go/v1/chat/completions ③ /v1/responses 或 /v1/messages 端点（自动识别协议）。"
         >
           <input
             type="text"

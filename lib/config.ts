@@ -15,4 +15,6 @@ export const PRESET_BASE_URLS = [
   { label: "Moonshot (Kimi)", value: "https://api.moonshot.cn" },
   { label: "SiliconFlow", value: "https://api.siliconflow.cn" },
   { label: "Ollama (本地)", value: "http://localhost:11434" },
+  { label: "OpenCode Go", value: "https://opencode.ai/zen/go" },
+  { label: "OpenCode Zen", value: "https://opencode.ai/zen" },
 ];

@@ -1,5 +1,6 @@
 import { useConfigStore } from "@/store/config-store";
 import type { Role } from "@/lib/types";
+import { extractDelta } from "@/lib/api-adapter";
 
 export interface LLMHistoryItem {
   role: Role;
@@ -53,7 +54,8 @@ export async function streamChat(
 
       try {
         const json = JSON.parse(payload);
-        const delta = json?.choices?.[0]?.delta?.content ?? "";
+        // 兼容三种协议：chat/completions、responses、messages
+        const delta = extractDelta(json);
         if (delta) {
           full += delta;
           onDelta(delta);

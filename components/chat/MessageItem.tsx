@@ -40,21 +40,39 @@ function CopyButton({ text }: { text: string }) {
  */
 function normalizeLatex(md: string): string {
   let out = md;
-  // \[ ... \] → 围栏式块级公式
+  // \[ ... \] → 围栏式块级公式（前后加空行，确保 $$ 独占一行、remark-math 才识别）
   out = out.replace(/\\\[([\s\S]+?)\\\]/g, (_m, inner: string) => {
     const v = inner.replace(/\n{2,}/g, "\n").trim();
-    return v ? `$$\n${v}\n$$` : _m;
+    return v ? `\n\n$$\n${v}\n$$\n\n` : _m;
   });
   // \( ... \) → 行内 $...$
   out = out.replace(/\\\(([\s\S]+?)\\\)/g, (_m, inner: string) => {
     const v = inner.replace(/\s+/g, " ").trim();
     return v ? `$${v}$` : _m;
   });
-  // 单行 / 行内 $$...$$ → 围栏式块级公式
+  // $$...$$（单行或已围栏）→ 统一成前后带空行的围栏式块级公式
   out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_m, inner: string) => {
     const v = inner.replace(/\n{2,}/g, "\n").trim();
-    return v ? `$$\n${v}\n$$` : _m;
+    return v ? `\n\n$$\n${v}\n$$\n\n` : _m;
   });
+
+  // 兜底：$$ 出现奇数次 = 有块级公式漏写了闭合的 $$。找到最后一个
+  // $$（它就是未闭合的开头），把它到文末的内容补成围栏式块级公式。
+  // （否则 remark-math 不识别，LaTeX 源码会被原样输出）
+  const dollarCount = (out.match(/\$\$/g) ?? []).length;
+  if (dollarCount % 2 === 1) {
+    const lastIdx = out.lastIndexOf("$$");
+    if (lastIdx !== -1) {
+      let rest = out.slice(lastIdx + 2).replace(/\n{2,}/g, "\n").trim();
+      // 剥离公式尾随的中文正文（如「未闭合结尾」），避免混入 KaTeX
+      const tailMatch = rest.match(/([\u4e00-\u9fff\uff00-\uffef\u3000-\u303f].*)$/s);
+      const tail = tailMatch?.[1] ?? "";
+      if (tail) rest = rest.slice(0, rest.length - tail.length).trim();
+      if (rest) {
+        out = `${out.slice(0, lastIdx)}\n\n$$\n${rest}\n$$\n\n${tail}`;
+      }
+    }
+  }
   return out;
 }
 

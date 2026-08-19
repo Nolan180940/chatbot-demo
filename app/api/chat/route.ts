@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { REQUEST_TIMEOUT_MS } from "@/lib/config";
+import { resolveEndpoint, buildUpstreamRequest } from "@/lib/api-adapter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,9 +56,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const url = `${normalizedBase}/v1/chat/completions`;
+  // 5. 识别协议类型（chat/completions | responses | messages）并构造上游请求
+  const { kind, url } = resolveEndpoint(normalizedBase);
+  const upstreamReq = buildUpstreamRequest(
+    kind,
+    url,
+    apiKey,
+    model,
+    messages.map((m: any) => ({ role: m.role, content: m.content })),
+  );
 
-  // 5. 超时控制 + 客户端断开时取消上游请求
+  // 6. 超时控制 + 客户端断开时取消上游请求
   //    （用户点击“停止生成”会 abort 客户端的 fetch，这里同步取消上游，
   //    避免模型继续生成浪费 token）
   const controller = new AbortController();
@@ -66,37 +75,40 @@ export async function POST(req: NextRequest) {
   req.signal.addEventListener("abort", onClientAbort);
 
   try {
-    const upstream = await fetch(url, {
+    const upstream = await fetch(upstreamReq.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
-        stream: true,
-      }),
+      headers: upstreamReq.headers,
+      body: upstreamReq.body,
       signal: controller.signal,
       redirect: "manual",
     });
 
-    // 6. 上游非 2xx：透传错误
+    // 7. 上游非 2xx：透传错误（HTML 页面给友好提示）
     if (!upstream.ok) {
       const errText = await upstream.text().catch(() => "");
+      const contentType = upstream.headers.get("content-type") ?? "";
+      let message: string;
+      if (contentType.includes("text/html")) {
+        message =
+          upstream.status === 404
+            ? `上游返回 404（HTML 页面）——请检查 Base URL：填完整端点时不要重复带 /v1/chat/completions 等路径，例如直接填 https://opencode.ai/zen/go/v1/chat/completions`
+            : `上游返回 ${upstream.status}（HTML 页面），请检查 Base URL 是否正确`;
+      } else {
+        message = errText || `上游服务返回 ${upstream.status}`;
+      }
       return json(
         {
           error: {
             code: "upstream_error",
             status: upstream.status,
-            message: errText || `上游服务返回 ${upstream.status}`,
+            message,
           },
         },
         upstream.status,
       );
     }
 
-    // 7. 成功：剥离 CORS 头、禁用缓冲，直接转发 SSE 流
+    // 8. 成功：剥离 CORS 头、禁用缓冲，直接转发 SSE 流
     const headers = new Headers();
     headers.set("Content-Type", "text/event-stream; charset=utf-8");
     headers.set("Cache-Control", "no-cache, no-transform");
