@@ -1,5 +1,5 @@
 import type { ValidationResult } from "./types";
-import { NAME_PATTERN, REQUIRED_FRONTMATTER } from "./schema.ts";
+import { NAME_PATTERN, REQUIRED_FRONTMATTER, normalizeName } from "./schema.ts";
 import { parseSkill } from "./parser.ts";
 
 /**
@@ -42,7 +42,14 @@ export function validateSkill(content: string): ValidationResult {
     issues.push({
       severity: "error",
       field: "name",
-      message: `name 格式错误：${parsed.name}（仅允许小写字母/数字/下划线）`,
+      message: `name 格式错误：${parsed.name}（仅允许小写字母/数字/下划线/连字符）`,
+    });
+  } else if (parsed.name && /-/.test(parsed.name)) {
+    // 连字符可导入，但会归一化为下划线（避免与 -work/-persona 命令后缀歧义）
+    issues.push({
+      severity: "warning",
+      field: "name",
+      message: `name 含连字符「-」，导入时将自动转换为下划线（${parsed.name} → ${normalizeName(parsed.name)}）`,
     });
   }
 

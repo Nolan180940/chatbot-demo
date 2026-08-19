@@ -14,7 +14,7 @@ import {
   parseLLMOutput,
 } from "@/lib/skill/prompts";
 import { validateSkill } from "@/lib/skill/validate";
-import { toSlug, TYPE_CATEGORY } from "@/lib/skill/schema";
+import { toSlug, normalizeName, TYPE_CATEGORY } from "@/lib/skill/schema";
 import type { SkillMeta, SkillType } from "@/lib/skill/types";
 import { buildSkillDoc, saveSkill } from "@/lib/skill/storage";
 import { useSkillStore } from "@/store/skill-store";
@@ -117,7 +117,10 @@ export default function SkillCreateWizard() {
   /** 保存入库 */
   const save = () => {
     if (!generated || !type) return;
-    const name = generated.meta.name || toSlug(generated.meta.displayName || "skill");
+    // name 归一化：连字符转下划线（AI 生成可能带 -）
+    const name = normalizeName(
+      generated.meta.name || toSlug(generated.meta.displayName || "skill"),
+    );
     const displayName = generated.meta.displayName || name;
     const doc = buildSkillDoc({
       slug: toSlug(name),

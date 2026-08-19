@@ -3,8 +3,8 @@ import type { SkillType } from "./types";
 /** 必填 frontmatter 字段 */
 export const REQUIRED_FRONTMATTER = ["name", "description"] as const;
 
-/** name 字段格式：小写字母/数字/下划线 */
-export const NAME_PATTERN = /^[a-z0-9_]+$/;
+/** name 字段格式：小写字母/数字/下划线/连字符（连字符导入时自动转下划线） */
+export const NAME_PATTERN = /^[a-z0-9_-]+$/;
 
 /** 可选 frontmatter 字段 */
 export const OPTIONAL_FRONTMATTER = ["user-invocable"] as const;
@@ -52,6 +52,21 @@ export function toSlug(input: string): string {
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
   return s || "skill";
+}
+
+/**
+ * 归一化 name：转小写、连字符转下划线、去非法字符。
+ * 用于导入时把 `colleague-kongzi` 这类外部命名统一为 `colleague_kongzi`，
+ * 避免与命令模式后缀 `-work` / `-persona` 产生歧义。
+ */
+export function normalizeName(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_")
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
 }
 
 /** 生成唯一 id：slug + 时间戳 + 随机后缀 */

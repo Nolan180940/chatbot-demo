@@ -12,7 +12,7 @@ import {
   findSlugConflicts,
 } from "@/lib/skill/storage";
 import { validateSkill } from "@/lib/skill/validate";
-import { toSlug, TYPE_CATEGORY } from "@/lib/skill/schema";
+import { toSlug, normalizeName, TYPE_CATEGORY } from "@/lib/skill/schema";
 
 interface SkillState {
   docs: SkillDoc[];
@@ -41,7 +41,11 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
         continue;
       }
       const parsed = validation.parsed;
-      const slug = toSlug(parsed.name || parsed.title || file.name.replace(/\.md$/i, ""));
+      // name 归一化：连字符转下划线（colleague-kongzi → colleague_kongzi）
+      const name = normalizeName(
+        parsed.name || parsed.title || file.name.replace(/\.md$/i, ""),
+      );
+      const slug = toSlug(name);
       const conflicts = findSlugConflicts(slug);
       if (conflicts.length > 0) {
         results.push({
@@ -55,7 +59,7 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
       }
       const doc = buildSkillDoc({
         slug,
-        name: parsed.name,
+        name,
         displayName: parsed.title || parsed.name,
         description: parsed.description,
         type: parsed.type,
@@ -77,10 +81,14 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
       return { fileName: file.name, ok: false, validation, error: "格式校验未通过" };
     }
     const parsed = validation.parsed;
-    const slug = toSlug(parsed.name || parsed.title || file.name.replace(/\.md$/i, ""));
+    // name 归一化：连字符转下划线（colleague-kongzi → colleague_kongzi）
+    const name = normalizeName(
+      parsed.name || parsed.title || file.name.replace(/\.md$/i, ""),
+    );
+    const slug = toSlug(name);
     const doc = buildSkillDoc({
       slug,
-      name: parsed.name,
+      name,
       displayName: parsed.title || parsed.name,
       description: parsed.description,
       type: parsed.type,

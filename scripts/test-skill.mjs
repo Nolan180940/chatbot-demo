@@ -14,7 +14,7 @@ import {
   findSlugConflicts,
 } from "../lib/skill/storage.ts";
 import { parseLLMOutput, buildGeneratePrompt } from "../lib/skill/prompts.ts";
-import { toSlug, makeId } from "../lib/skill/schema.ts";
+import { toSlug, makeId, normalizeName } from "../lib/skill/schema.ts";
 
 let pass = 0;
 let fail = 0;
@@ -46,6 +46,13 @@ setSkillStorage({
 check("toSlug 中文+空格", toSlug("孔子 语录"), "孔子_语录");
 check("toSlug 大写转小写", toSlug("MySkill"), "myskill");
 check("toSlug 空输入", toSlug("   "), "skill");
+
+// --- normalizeName（方案 A：连字符转下划线） ---
+check("normalizeName 连字符转下划线", normalizeName("colleague-kongzi"), "colleague_kongzi");
+check("normalizeName 大写转小写", normalizeName("My-Skill"), "my_skill");
+check("normalizeName 非法字符清理", normalizeName("Bad Name!"), "bad_name");
+check("normalizeName 已下划线不变", normalizeName("colleague_kongzi"), "colleague_kongzi");
+check("normalizeName 空输入", normalizeName("   "), "");
 ok("makeId 唯一性", makeId("a") !== makeId("a"));
 
 // --- parser ---
@@ -124,7 +131,16 @@ description: x
 
 # X
 `);
-check("validate name 格式错误", vBadName.issues.some((i) => i.severity === "error" && i.field === "name"), true);
+check("validate name 非法字符 → error", vBadName.issues.some((i) => i.severity === "error" && i.field === "name"), true);
+const vHyphenName = validateSkill(`---
+name: colleague-kongzi
+description: x
+---
+
+# X
+`);
+check("validate name 连字符 → 可导入", vHyphenName.valid, true);
+check("validate name 连字符 → warning 提示归一化", vHyphenName.issues.some((i) => i.severity === "warning" && i.field === "name" && i.message.includes("colleague_kongzi")), true);
 const vNoPart = validateSkill(`---
 name: plain
 description: x
