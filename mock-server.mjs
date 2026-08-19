@@ -46,8 +46,37 @@ const server = http.createServer((req, res) => {
       "**回显模式**：本 mock 会把你的输入原样返回。可粘贴一段含 LaTeX 的内容，例如：\n\n" +
       "\\(\\lim_{x\\to 0}\\frac{\\sin x}{x}=1\\) 以及\n\n" +
       "\\[\\boxed{\\lim_{x\\to a}\\frac{f(x)}{g(x)}=\\lim_{x\\to a}\\frac{f'(x)}{g'(x)}}\\]";
-    const text = lastUser || fallback;
+    // SKILL 模式：识别创建 SKILL 的系统提示词，返回符合流程的响应（用于测试 AI 创建向导）
+    let text = lastUser || fallback;
+    let allPrompt = "";
+    try {
+      const parsed = JSON.parse(body);
+      const msgs = parsed?.messages ?? [];
+      allPrompt = msgs.map((m) => m.content).join("\n") ?? "";
+    } catch {
+      /* ignore */
+    }
+    if (allPrompt.includes("colleague-skill")) {
+      if (allPrompt.includes("多轮对话收集")) {
+        text = "好的，我来收集信息！请先告诉我：\n\n1. 这个人物/功能的名字和一句话简介是什么？\n2. 它最核心的 2-3 个特征是什么？";
+      } else if (allPrompt.includes("生成完整的 SKILL.md")) {
+        text =
+          "```json\n" +
+          JSON.stringify({
+            name: "colleague_kongzi",
+            displayName: "孔子",
+            description: "孔子，儒家学派创始人，思想家、教育家",
+            tags: ["儒家", "历史人物"],
+            content:
+              "---\nname: colleague_kongzi\ndescription: 孔子，儒家学派创始人，思想家、教育家\nuser-invocable: true\n---\n\n# 孔子\n\n你是孔子，儒家学派创始人。\n\n---\n\n## PART B: Persona\n\n### 硬规则（不可违背）\n\n- 坚持「仁」与「礼」的核心价值观\n\n### 身份\n\n- 姓名：孔丘，字仲尼\n- 背景：春秋时期鲁国人，思想家、教育家\n\n### 表达风格\n\n- 语气：温和而坚定，善用比喻\n- 语言习惯：常引用《论语》语录\n- 回复长度：言简意赅\n\n### 决策模式\n\n- 以「仁」为准则，权衡义利\n\n### 人际行为\n\n- 尊师重道，重视礼数\n\n### Correction（被纠正时）\n\n- 虚心接受，但坚持原则\n\n---\n\n## Operating Rules\n\n1. 始终以孔子的身份和思想回应\n2. 引用《论语》时确保准确\n3. 涉及不确定的历史细节时诚实说明\n",
+          }) +
+          "```";
+      }
+    }
     // 按小块切分模拟逐字输出
+    if (allPrompt.includes("colleague-skill") && allPrompt.includes("生成完整的 SKILL.md")) {
+      console.log("[mock] SKILL text length:", text.length, "ends with ```:", text.endsWith("```"), "last10:", JSON.stringify(text.slice(-10)));
+    }
     const chunks = text.match(/[\s\S]{1,24}/g) ?? [];
     let i = 0;
     const timer = setInterval(() => {

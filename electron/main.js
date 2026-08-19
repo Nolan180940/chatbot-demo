@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { spawn } = require("child_process");
 const net = require("net");
 const path = require("path");
@@ -22,6 +22,73 @@ function getFreePort() {
       const port = srv.address().port;
       srv.close(() => resolve(port));
     });
+  });
+}
+
+// ── SKILL 文件系统支持 ────────────────────────────────────────────
+// 递归查找目录下所有 SKILL.md（跳过常见无关目录）
+function findSkillFiles(dir) {
+  const results = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "out") continue;
+      results.push(...findSkillFiles(full));
+    } else if (entry.isFile() && entry.name.toLowerCase() === "skill.md") {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+function readSkillFile(filePath) {
+  const content = fs.readFileSync(filePath, "utf8");
+  const rel = path.basename(path.dirname(filePath)) || filePath;
+  return { name: `${rel}/SKILL.md`, content, path: filePath };
+}
+
+function registerSkillIpc() {
+  // 打开文件对话框选择 SKILL.md（可多选）
+  ipcMain.handle("skill:openFiles", async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? mainWindow;
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: "选择 SKILL.md 文件",
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+    });
+    if (canceled || filePaths.length === 0) return [];
+    return filePaths.filter((p) => p.toLowerCase().endsWith(".md")).map(readSkillFile);
+  });
+
+  // 选择目录并递归扫描 SKILL.md
+  ipcMain.handle("skill:openDirectory", async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? mainWindow;
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: "选择包含 SKILL.md 的目录",
+      properties: ["openDirectory"],
+    });
+    if (canceled || filePaths.length === 0) return [];
+    return findSkillFiles(filePaths[0]).map(readSkillFile);
+  });
+
+  // 保存 SKILL.md 到本地
+  ipcMain.handle("skill:saveFile", async (_e, { content, defaultName }) => {
+    const win = BrowserWindow.getFocusedWindow() ?? mainWindow;
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: "导出 SKILL.md",
+      defaultPath: defaultName || "SKILL.md",
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, content, "utf8");
+    return filePath;
   });
 }
 
@@ -148,6 +215,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
+    registerSkillIpc();
     try {
       const url = await startServer();
       createWindow(url);

@@ -3,7 +3,7 @@ import type { Role } from "@/lib/types";
 import { extractDelta } from "@/lib/api-adapter";
 
 export interface LLMHistoryItem {
-  role: Role;
+  role: Role | "system";
   content: string;
 }
 

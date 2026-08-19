@@ -45,6 +45,7 @@ npm run electron:dev # 桌面端开发：自动拉起 Next + Electron 窗口
 - 💾 **会话导出**：单个会话 / 全部会话导出为 JSON
 - 📊 **Token 统计**：本地启发式估算与按会话排行
 - 📐 **响应式侧边栏**：桌面端可折叠/展开，手机端自动变为抽屉菜单（汉堡按钮 + 遮罩）
+- 🧩 **SKILL 管理系统**：导入 / 编辑 / AI 创建 AgentSkills（`SKILL.md`），遵循 colleague-skill 开放标准
 - 🖥️ **桌面应用**：Electron 封装同一套代码，可打包 Windows 安装包（NSIS .exe），无需浏览器
 
 ### 技术栈
@@ -58,6 +59,34 @@ npm run electron:dev # 桌面端开发：自动拉起 Next + Electron 窗口
 | 字体 | Space Grotesk / IBM Plex Sans / IBM Plex Mono（next/font 自托管） |
 | 后端 | Next.js Route Handler 同源代理（无独立后端） |
 | 桌面端 | Electron 33 + electron-builder（Windows NSIS 安装包） |
+
+---
+
+## 🧩 SKILL 管理系统
+
+遵循 [colleague-skill](https://github.com/titanwings/colleague-skill)（AgentSkills 开放标准）的 SKILL 管理，位于 `/skills` 页面：
+
+- **📥 导入**：拖拽 / 点击选择本地 `SKILL.md`（多文件批量），自动解析 frontmatter 并做**格式校验**（必填字段、命名规范、PART A/B 结构）；slug 冲突时提示覆盖或重命名。**桌面端**额外支持「从本机选择文件」和「递归扫描目录（`**/SKILL.md`）」
+- **✨ AI 创建**：多轮对话收集需求（人格类 / 功能性向导）→ 按 colleague-skill 规范自动生成 `SKILL.md` → 自动校验（不合格自动修正，最多 2 轮）→ 预览确认后入库
+- **✏️ 编辑器**：CodeMirror 6 Markdown 编辑（语法高亮、自动补全、撤销/重做）+ 结构化模板插入 + **实时预览**（同一套 KaTeX 渲染管线）+ 行级校验提示
+- **🕘 版本历史**：每次保存自动追加版本快照（上限 50），支持一键回滚
+- **💾 存储**：本地 `localStorage`（`skill-docs-v1`），无服务端依赖；桌面端可导出 `.md` 到本地文件
+
+### SKILL.md 格式
+
+```markdown
+---
+name: colleague_zhangsan   # 小写字母/数字/下划线
+description: 一句话描述
+user-invocable: true
+---
+
+# 显示名称
+
+## PART A: Work      ← 功能性 SKILL（功能描述/使用方法/参数配置/工作流程）
+## PART B: Persona    ← 人格类 SKILL（硬规则/身份/表达风格/决策模式/人际行为/Correction）
+## Operating Rules
+```
 
 ---
 
@@ -107,6 +136,9 @@ chatbot-demo/
 │   ├── chat/page.tsx                 # 聊天页：无会话时自动创建
 │   ├── settings/page.tsx             # 设置页：Sidebar + SettingsPanel
 │   ├── stats/page.tsx                # 统计页：Sidebar + StatsPanel
+│   ├── skills/page.tsx               # SKILL 库：列表 + 搜索/筛选 + 导入入口
+│   ├── skills/create/page.tsx        # AI 创建向导
+│   ├── skills/[id]/page.tsx          # SKILL 编辑器页（编辑/预览/校验/版本）
 │   └── api/chat/route.ts             # ★ 后端代理：转发 LLM 请求
 │
 ├── components/                       # UI 组件
@@ -122,6 +154,15 @@ chatbot-demo/
 │   │   ├── SettingsPanel.tsx         # 三项参数表单 + 预设地址 + 保存
 │   │   └── ConnectionTest.tsx        # 连接测试状态卡片
 │   ├── stats/StatsPanel.tsx          # Token 统计与会话排行
+│   ├── skills/                       # SKILL 管理（colleague-skill 标准）
+│   │   ├── SkillImport.tsx           # 导入对话框：拖拽/文件选择/桌面端本机导入
+│   │   ├── SkillList.tsx             # SKILL 列表：搜索 + 类型筛选 + 删除
+│   │   ├── SkillEditor.tsx           # 编辑器：CodeMirror + 实时预览 + 校验面板
+│   │   ├── CodeEditor.tsx            # CodeMirror 6 Markdown 编辑器封装
+│   │   ├── SkillPreview.tsx          # Markdown 预览（react-markdown + KaTeX）
+│   │   ├── SkillValidationPanel.tsx  # 校验结果（错误/警告，点击跳行）
+│   │   ├── SkillVersionHistory.tsx   # 版本时间线 + 回滚
+│   │   └── SkillCreateWizard.tsx     # AI 创建向导（选类型→对话→生成→预览）
 │   └── ui/Button.tsx                 # 通用按钮
 │
 ├── lib/                              # 业务逻辑
@@ -129,11 +170,20 @@ chatbot-demo/
 │   ├── config.ts                     # 默认配置 + 预设 base URL + 超时常量
 │   ├── llm.ts                        # ★ streamChat / testConnection 封装
 │   ├── token.ts                      # Token 启发式估算
-│   └── export.ts                     # 会话 JSON 导出
+│   ├── export.ts                     # 会话 JSON 导出
+│   └── skill/                        # SKILL 领域逻辑
+│       ├── types.ts                  # SkillDoc / SkillMeta / ImportResult 等类型
+│       ├── schema.ts                 # 命名规则 / 章节常量 / toSlug / makeId
+│       ├── parser.ts                 # SKILL.md 解析（gray-matter）
+│       ├── validate.ts               # 格式校验（错误/警告分级）
+│       ├── template.ts               # 人格类/功能性模板生成
+│       ├── storage.ts                # localStorage 持久化 + 版本管理
+│       └── prompts.ts                # LLM 提示词（生成/修正/输出解析）
 │
 ├── store/                            # Zustand 状态
 │   ├── chat-store.ts                 # 会话/消息 CRUD + autoTitle + persist
 │   ├── config-store.ts               # 三项参数 + isReady + persist
+│   ├── skill-store.ts                # SKILL 文档 CRUD + 导入（slug 冲突处理）
 │   └── ui-store.ts                   # 侧边栏折叠 / 手机抽屉状态（折叠偏好 persist）
 │
 ├── types/css.d.ts                    # CSS 副作用导入声明
