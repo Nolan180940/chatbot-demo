@@ -4,10 +4,10 @@ directories:
   output: release
 files:
   - electron/**/*
-  - '!node_modules/**/*'          # 运行时依赖都在 resources/server（extraResources），asar 里不需要 node_modules
+  - '!node_modules/**/*'          # 运行时依赖都在 resources/dist（extraResources），asar 里不需要 node_modules
 extraResources:
-  - from: .next/standalone
-    to: server
+  - from: dist
+    to: dist
 compression: maximum
 electronLanguages:
   - en-US

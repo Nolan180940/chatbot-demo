@@ -1,5 +1,5 @@
 // SKILL 调用（invoke）单元测试：node scripts/test-invoke.mjs
-import { parseSkillCommand, extractSection, skillContentForMode, buildSkillMessages, resolveSkillForSend } from "../lib/skill/invoke.ts";
+import { parseSkillCommand, extractSection, skillContentForMode, buildSkillMessages, resolveSkillForSend } from "../src/lib/skill/invoke.ts";
 
 let pass = 0;
 let fail = 0;

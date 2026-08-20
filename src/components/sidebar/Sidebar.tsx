@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useChatStore } from "@/store/chat-store";
 import { useUIStore } from "@/store/ui-store";
 import { exportAllSessions } from "@/lib/export";
@@ -31,13 +31,13 @@ function SidebarContent({
   const activeId = useChatStore((s) => s.activeSessionId);
   const createSession = useChatStore((s) => s.createSession);
   const deleteSession = useChatStore((s) => s.deleteSession);
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const isSettings = pathname === "/settings";
-  const isStats = pathname === "/stats";
-  const isSkills = pathname === "/skills";
+  const isSettings = location.pathname === "/settings";
+  const isStats = location.pathname === "/stats";
+  const isSkills = location.pathname === "/skills";
   const [exported, setExported] = useState(false);
 
   return (
@@ -95,7 +95,7 @@ function SidebarContent({
         <button
           onClick={() => {
             const id = createSession();
-            router.push("/chat");
+            navigate({ to: "/chat" });
           }}
           title="新建对话"
           className={`w-full flex items-center justify-center rounded-lg bg-gold hover:bg-gold-soft text-ink-950 shadow-gold transition-all ${
@@ -111,7 +111,7 @@ function SidebarContent({
         </button>
 
         <button
-          onClick={() => router.push("/settings")}
+          onClick={() => navigate({ to: "/settings" })}
           title="参数设置"
           className={`w-full flex items-center gap-2.5 rounded-lg text-sm transition-all ${
             isSettings
@@ -127,7 +127,7 @@ function SidebarContent({
         </button>
 
         <button
-          onClick={() => router.push("/skills")}
+          onClick={() => navigate({ to: "/skills" })}
           title="SKILL 库"
           className={`w-full flex items-center gap-2.5 rounded-lg text-sm transition-all ${
             isSkills
@@ -143,7 +143,7 @@ function SidebarContent({
         </button>
 
         <button
-          onClick={() => router.push("/stats")}
+          onClick={() => navigate({ to: "/stats" })}
           title="数据统计"
           className={`w-full flex items-center gap-2.5 rounded-lg text-sm transition-all ${
             isStats
@@ -183,7 +183,7 @@ function SidebarContent({
                 } ${collapsed ? "justify-center py-2.5" : "px-3 py-2"}`}
                 onClick={() => {
                   useChatStore.getState().switchSession(s.id);
-                  router.push("/chat");
+                  navigate({ to: "/chat" });
                 }}
               >
                 <span className="font-mono text-gold/70 flex-shrink-0 select-none">
@@ -297,12 +297,12 @@ export default function Sidebar() {
   const mobileOpen = useUIStore((s) => s.sidebarMobileOpen);
   const toggleCollapsed = useUIStore((s) => s.toggleCollapsed);
   const setMobileOpen = useUIStore((s) => s.setMobileOpen);
-  const pathname = usePathname();
+  const location = useLocation();
 
   // 路由变化时自动关闭移动端抽屉
   useEffect(() => {
     setMobileOpen(false);
-  }, [pathname, setMobileOpen]);
+  }, [location.pathname, setMobileOpen]);
 
   return (
     <>

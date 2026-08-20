@@ -6,7 +6,7 @@ import {
   estimateMessageTokens,
   formatNumber,
 } from "@/lib/token";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 
 interface Stats {
   sessions: number;
@@ -119,7 +119,7 @@ export default function StatsPanel() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const stats = useMemo(computeStats, []);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const maxTokens = Math.max(1, ...stats.perSession.map((s) => s.tokens));
 
@@ -138,7 +138,7 @@ export default function StatsPanel() {
             </p>
           </div>
           <button
-            onClick={() => router.push("/chat")}
+            onClick={() => navigate({ to: "/chat" })}
             className="font-mono text-xs px-3 py-1.5 rounded-lg border border-line text-dim hover:text-white hover:border-gold/40 transition-all"
           >
             ← back
@@ -163,7 +163,7 @@ export default function StatsPanel() {
           </p>
         </div>
         <button
-          onClick={() => router.push("/chat")}
+          onClick={() => navigate({ to: "/chat" })}
           className="font-mono text-xs px-3 py-1.5 rounded-lg border border-line text-dim hover:text-white hover:border-gold/40 transition-all"
         >
           ← back

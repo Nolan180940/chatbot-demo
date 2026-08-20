@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import Button from "@/components/ui/Button";
 import SkillImport from "@/components/skills/SkillImport";
 import SkillList from "@/components/skills/SkillList";
@@ -16,7 +14,7 @@ export default function SkillsPage() {
         {/* 顶部导航 */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-dim hover:text-white text-sm transition-colors">
+            <Link to="/chat" className="text-dim hover:text-white text-sm transition-colors">
               ← 返回
             </Link>
             <h1 className="font-display text-2xl font-bold text-white">SKILL 库</h1>
@@ -25,7 +23,7 @@ export default function SkillsPage() {
             <Button variant="outline" onClick={() => setShowImport(true)}>
               📥 导入
             </Button>
-            <Link href="/skills/create">
+            <Link to="/skills/create">
               <Button>✨ AI 创建</Button>
             </Link>
           </div>

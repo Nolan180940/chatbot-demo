@@ -1,6 +1,6 @@
 // AI 创建向导收集逻辑单元测试：node scripts/test-create-wizard.mjs
-import { classifyAnswer, collectAnswer } from "../lib/skill/collect.ts";
-import { buildGeneratePrompt, buildSystemPrompt } from "../lib/skill/prompts.ts";
+import { classifyAnswer, collectAnswer } from "../src/lib/skill/collect.ts";
+import { buildGeneratePrompt, buildSystemPrompt } from "../src/lib/skill/prompts.ts";
 
 let pass = 0;
 let fail = 0;

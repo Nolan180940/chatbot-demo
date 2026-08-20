@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "@tanstack/react-router";
 import Button from "@/components/ui/Button";
 import SkillPreview from "@/components/skills/SkillPreview";
 import { streamChat } from "@/lib/llm";
@@ -29,7 +28,7 @@ type Phase = "type" | "chat" | "generating" | "preview";
 
 /** AI 创建 SKILL 向导：选类型 → 对话收集 → 生成 → 预览确认 → 保存 */
 export default function SkillCreateWizard() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { refresh } = useSkillStore();
   const [phase, setPhase] = useState<Phase>("type");
   const [type, setType] = useState<SkillType | null>(null);
@@ -144,7 +143,7 @@ export default function SkillCreateWizard() {
     });
     saveSkill(doc);
     refresh();
-    router.push(`/skills/${doc.id}`);
+    navigate({ to: "/skills/$id", params: { id: doc.id } });
   };
 
   return (
@@ -152,7 +151,7 @@ export default function SkillCreateWizard() {
       {/* 顶栏 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/skills" className="text-dim hover:text-white text-sm transition-colors">
+          <Link to="/skills" className="text-dim hover:text-white text-sm transition-colors">
             ← 返回
           </Link>
           <h1 className="font-display text-2xl font-bold text-white">AI 创建 SKILL</h1>

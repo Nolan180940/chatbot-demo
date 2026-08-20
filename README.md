@@ -3,7 +3,7 @@
 > 自带 API Key 的极简 Chatbot 应用：配置三项参数即可连接任意 OpenAI 兼容服务。
 > 定位为 [NextChat](https://github.com/ChatGPTNextWeb/NextChat) 的**简化版** —— 无用户系统、无插件、无多模型管理，只聚焦「聊天 + 配置」。
 
-![tech](https://img.shields.io/badge/Next.js-14.2.35-black) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange) ![electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white) [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel)](https://chatbot-eight-theta-30.vercel.app/chat)
+![tech](https://img.shields.io/badge/Vite-6-purple) ![ts](https://img.shields.io/badge/TypeScript-5.5-blue) ![react](https://img.shields.io/badge/React-19-61dafb) ![tailwind](https://img.shields.io/badge/Tailwind-3.4-06b6d4) ![zustand](https://img.shields.io/badge/Zustand-4.5-orange) ![electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white) [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel)](https://chatbot-eight-theta-30.vercel.app/chat)
 
 ## 🚀 在线 Demo
 
@@ -25,8 +25,9 @@
 git clone https://github.com/Nolan180940/chatbot-demo.git
 cd chatbot-demo
 npm install
-npm run dev          # Web 开发：http://localhost:3000
-npm run electron:dev # 桌面端开发：自动拉起 Next + Electron 窗口
+npm run dev          # Web 开发：http://localhost:3015
+npm run electron:dev # 桌面端开发：自动拉起 Vite + Electron 窗口
+npm run build        # 构建：输出 dist/（静态站 + Vercel 部署）
 ```
 
 > 📘 **打包 / 调试教程**：见 [USER-SETUP.md](./USER-SETUP.md)（含如何把桌面版打包成 Windows 安装包）。

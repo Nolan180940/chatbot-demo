@@ -1,7 +1,7 @@
 // 单元测试：lib/skill 模块（parser / validate / template / storage / prompts）
-import { parseSkill, serializeSkill } from "../lib/skill/parser.ts";
-import { validateSkill } from "../lib/skill/validate.ts";
-import { personaTemplate, functionalTemplate } from "../lib/skill/template.ts";
+import { parseSkill, serializeSkill } from "../src/lib/skill/parser.ts";
+import { validateSkill } from "../src/lib/skill/validate.ts";
+import { personaTemplate, functionalTemplate } from "../src/lib/skill/template.ts";
 import {
   setSkillStorage,
   saveSkill,
@@ -12,9 +12,9 @@ import {
   rollbackSkill,
   buildSkillDoc,
   findSlugConflicts,
-} from "../lib/skill/storage.ts";
-import { parseLLMOutput, buildGeneratePrompt } from "../lib/skill/prompts.ts";
-import { toSlug, makeId, normalizeName } from "../lib/skill/schema.ts";
+} from "../src/lib/skill/storage.ts";
+import { parseLLMOutput, buildGeneratePrompt } from "../src/lib/skill/prompts.ts";
+import { toSlug, makeId, normalizeName } from "../src/lib/skill/schema.ts";
 
 let pass = 0;
 let fail = 0;

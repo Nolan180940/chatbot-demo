@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useChatStore } from "@/store/chat-store";
 import { useConfigStore } from "@/store/config-store";
 import { useSkillStore } from "@/store/skill-store";
 import { streamChat } from "@/lib/llm";
 import { buildSkillMessages, resolveSkillForSend } from "@/lib/skill/invoke";
 import { TYPE_LABELS } from "@/lib/skill/schema";
-import { useRouter } from "next/navigation";
 
 export default function ChatInput({
   sessionId,
@@ -18,7 +18,7 @@ export default function ChatInput({
 }) {
   const [input, setInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const router = useRouter();
+  const navigate = useNavigate();
   const skillDocs = useSkillStore((s) => s.docs);
 
   // ── 斜杠命令选择器状态 ──
@@ -43,7 +43,7 @@ export default function ChatInput({
     const text = input.trim();
     if (!text || streaming) return;
     if (!useConfigStore.getState().isReady()) {
-      router.push("/settings");
+      navigate({ to: "/settings" });
       return;
     }
 

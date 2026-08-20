@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import Button from "@/components/ui/Button";
 import type { SkillDoc } from "@/lib/skill/types";
 import { TYPE_BADGE, TYPE_LABELS } from "@/lib/skill/schema";
@@ -115,7 +115,7 @@ function SkillCard({ doc, onDelete }: { doc: SkillDoc; onDelete: () => void }) {
               <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>
                 删除
               </Button>
-              <Link href={`/skills/${doc.id}`}>
+              <Link to="/skills/$id" params={{ id: doc.id }}>
                 <Button size="sm" variant="outline">
                   编辑 →
                 </Button>

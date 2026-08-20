@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 
 const DEV_MODE = process.argv.includes("--dev");
-const DEV_PORT = 3000;
+const DEV_PORT = 3015;
 const READY_TIMEOUT_MS = 30_000;
 
 let mainWindow = null;
@@ -107,36 +107,34 @@ async function waitForServer(url, timeoutMs = READY_TIMEOUT_MS) {
   throw new Error(`本地服务未在 ${timeoutMs / 1000}s 内就绪`);
 }
 
-// ── 启动 Next.js 服务 ────────────────────────────────────────────
+// ── 启动本地服务（Vite 构建产物 + /api/chat 代理） ───────────────
 async function startServer() {
   if (DEV_MODE) {
     await waitForServer(`http://localhost:${DEV_PORT}`);
     return `http://localhost:${DEV_PORT}`;
   }
 
-  // 打包后 standalone 服务位于 resources/server（真实文件，不打包进 asar）；
-  // 开发/未打包时回退到项目内 .next/standalone。
-  const standaloneDir = app.isPackaged
-    ? path.join(process.resourcesPath, "server")
-    : path.join(app.getAppPath(), ".next", "standalone");
-  const serverFile = path.join(standaloneDir, "server.js");
-  if (!fs.existsSync(serverFile)) {
+  // 打包后 dist 位于 resources/dist（真实文件，不打包进 asar）；
+  // 开发/未打包时回退到项目内 dist/。
+  const distDir = app.isPackaged
+    ? path.join(process.resourcesPath, "dist")
+    : path.join(app.getAppPath(), "dist");
+  const indexFile = path.join(distDir, "index.html");
+  if (!fs.existsSync(indexFile)) {
     throw new Error(
-      `未找到 standalone 服务: ${serverFile}\n请先运行 npm run build:standalone`,
+      `未找到构建产物: ${indexFile}\n请先运行 npm run build`,
     );
   }
 
   const port = await getFreePort();
+  const serverScript = path.join(__dirname, "static-server.mjs");
 
-  // 用 Electron 自身二进制以纯 Node 模式运行 server.js，
+  // 用 Electron 自身二进制以纯 Node 模式运行静态服务器，
   // 无需额外捆绑 Node 运行时。
-  serverProcess = spawn(process.execPath, [serverFile], {
-    cwd: standaloneDir,
+  serverProcess = spawn(process.execPath, [serverScript, distDir, String(port)], {
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
-      PORT: String(port),
-      HOSTNAME: "127.0.0.1",
       NODE_ENV: "production",
     },
     stdio: ["ignore", "pipe", "pipe"],

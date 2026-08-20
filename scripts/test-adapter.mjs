@@ -1,5 +1,5 @@
 // 临时测试：验证 lib/api-adapter.ts 的协议识别 / 请求构造 / SSE 解析
-import { resolveEndpoint, buildUpstreamRequest, extractDelta } from "../lib/api-adapter.ts";
+import { resolveEndpoint, buildUpstreamRequest, extractDelta } from "../src/lib/api-adapter.ts";
 
 let pass = 0;
 let fail = 0;

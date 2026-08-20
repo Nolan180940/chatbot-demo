@@ -1,8 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Link, useParams } from "@tanstack/react-router";
 import Button from "@/components/ui/Button";
 import SkillEditor from "@/components/skills/SkillEditor";
 import type { SkillDoc } from "@/lib/skill/types";
@@ -11,7 +8,7 @@ import { useSkillStore } from "@/store/skill-store";
 
 /** SKILL 编辑器页 */
 export default function SkillEditPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams({ from: "/skills/$id" });
   const { docs, updateContent, rollback } = useSkillStore();
   const [doc, setDoc] = useState<SkillDoc | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -26,7 +23,7 @@ export default function SkillEditPage() {
       <main className="min-h-screen bg-ink-950 text-slate-200 flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-dim">SKILL 不存在或已被删除</p>
-          <Link href="/skills">
+          <Link to="/skills">
             <Button variant="outline">← 返回 SKILL 库</Button>
           </Link>
         </div>
@@ -64,7 +61,7 @@ export default function SkillEditPage() {
       {/* 顶栏 */}
       <div className="flex items-center justify-between border-b border-line bg-panel px-4 py-2.5">
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/skills" className="text-dim hover:text-white text-sm transition-colors shrink-0">
+          <Link to="/skills" className="text-dim hover:text-white text-sm transition-colors shrink-0">
             ← 返回
           </Link>
           <h1 className="font-display font-semibold text-white truncate">{doc.meta.displayName}</h1>
