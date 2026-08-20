@@ -168,7 +168,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 function readJson(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let raw = "";
-    req.on("data", (chunk) => {
+    req.on("data", (chunk: Buffer) => {
       raw += chunk;
       if (raw.length > MAX_BODY_KB * 1024) {
         reject(new Error("payload too large"));
