@@ -7,6 +7,33 @@
 //   POST /v1/messages          → Anthropic messages 格式 SSE
 import http from "node:http";
 
+/** 从生成提示词中提取人物/功能名（优先「人物是谁」，其次「核心功能」，再其次需求描述里的名字） */
+function extractSkillName(allPrompt) {
+  const m1 = allPrompt.match(/人物是谁[：:]\s*([^\n，,。]+)/);
+  if (m1) return m1[1].trim();
+  const m2 = allPrompt.match(/核心功能[：:]\s*([^\n，,。]+)/);
+  if (m2) return m2[1].trim();
+  // 从需求描述中提取：创建/做一个 …的SKILL（去掉引导语和尾部「的」）
+  const m3 = allPrompt.match(/创建(?:一个|个)?(?:关于)?([\u4e00-\u9fff]{2,6})(?:的)?SKILL/);
+  if (m3) return m3[1].replace(/的$/, "");
+  // 兜底：需求描述里第一个 2-6 字中文词
+  const m4 = allPrompt.match(/需求描述[：:]\s*([^\n，,。]+)/);
+  if (m4) {
+    const name = m4[1].replace(/^(?:我需要|我想|请帮我|帮我)?(?:创建|做一个|做一个关于)?/, "").trim();
+    if (name) return name;
+  }
+  return null;
+}
+
+/** 中文名转 ASCII slug：拼音不可得时用 colleague_ + 时间戳兜底 */
+function toAsciiSlug(name) {
+  const ascii = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return ascii || `colleague_${Date.now().toString(36)}`;
+}
+
 const server = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
@@ -60,15 +87,21 @@ const server = http.createServer((req, res) => {
       if (allPrompt.includes("多轮对话收集")) {
         text = "好的，我来收集信息！请先告诉我：\n\n1. 这个人物/功能的名字和一句话简介是什么？\n2. 它最核心的 2-3 个特征是什么？";
       } else if (allPrompt.includes("生成完整的 SKILL.md")) {
+        // 从收集到的信息中动态提取人物/功能名，生成对应 SKILL（不再写死孔子）
+        const skillName = extractSkillName(allPrompt) || "测试人物";
+        const slug = toAsciiSlug(skillName);
+        const isPersona = allPrompt.includes("人格类");
+        const content = isPersona
+          ? `---\nname: ${slug}\ndescription: ${skillName}，${skillName}风格助手\nuser-invocable: true\n---\n\n# ${skillName}\n\n你是${skillName}。\n\n---\n\n## PART B: Persona\n\n### 硬规则（不可违背）\n\n- 始终以${skillName}的身份和风格回应\n\n### 身份\n\n- 姓名：${skillName}\n- 背景：${skillName}风格助手\n\n### 表达风格\n\n- 语气：符合${skillName}的公众形象\n- 语言习惯：口语化、接地气\n- 回复长度：简洁有力\n\n### 决策模式\n\n- 以${skillName}的价值观为准则\n\n### 人际行为\n\n- 热情直接，不绕弯子\n\n### Correction（被纠正时）\n\n- 虚心接受，保持风格\n\n---\n\n## Operating Rules\n\n1. 始终以${skillName}的身份回应\n2. 保持${skillName}的标志性表达风格\n3. 涉及不确定的信息时诚实说明\n`
+          : `---\nname: ${slug}\ndescription: ${skillName}，功能性工具\nuser-invocable: true\n---\n\n# ${skillName}\n\n${skillName}工具。\n\n---\n\n## PART A: Work\n\n### 功能描述\n\n提供${skillName}相关能力\n\n### 使用方法\n\n直接提问即可\n\n### 参数配置\n\n无\n\n### 工作流程\n\n1. 理解用户需求\n2. 执行${skillName}相关操作\n3. 返回结果\n\n### 输出偏好\n\n简洁清晰\n\n### 经验知识库\n\n${skillName}领域知识\n\n---\n\n## Operating Rules\n\n1. 按流程执行\n2. 结果准确\n3. 不确定时说明\n`;
         text =
           "```json\n" +
           JSON.stringify({
-            name: "colleague_kongzi",
-            displayName: "孔子",
-            description: "孔子，儒家学派创始人，思想家、教育家",
-            tags: ["儒家", "历史人物"],
-            content:
-              "---\nname: colleague_kongzi\ndescription: 孔子，儒家学派创始人，思想家、教育家\nuser-invocable: true\n---\n\n# 孔子\n\n你是孔子，儒家学派创始人。\n\n---\n\n## PART B: Persona\n\n### 硬规则（不可违背）\n\n- 坚持「仁」与「礼」的核心价值观\n\n### 身份\n\n- 姓名：孔丘，字仲尼\n- 背景：春秋时期鲁国人，思想家、教育家\n\n### 表达风格\n\n- 语气：温和而坚定，善用比喻\n- 语言习惯：常引用《论语》语录\n- 回复长度：言简意赅\n\n### 决策模式\n\n- 以「仁」为准则，权衡义利\n\n### 人际行为\n\n- 尊师重道，重视礼数\n\n### Correction（被纠正时）\n\n- 虚心接受，但坚持原则\n\n---\n\n## Operating Rules\n\n1. 始终以孔子的身份和思想回应\n2. 引用《论语》时确保准确\n3. 涉及不确定的历史细节时诚实说明\n",
+            name: slug,
+            displayName: skillName,
+            description: `${skillName}，${isPersona ? "人格类" : "功能性"} SKILL`,
+            tags: [skillName],
+            content,
           }) +
           "```";
       }

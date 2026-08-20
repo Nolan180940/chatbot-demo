@@ -8,7 +8,7 @@ export const SKILL_SPEC = `你是一个 SKILL 创建助手，遵循 colleague-sk
 文件必须以 YAML frontmatter 开头：
 
 ---
-name: colleague_zhangsan        # 小写字母/数字/下划线
+name: colleague_example        # 小写字母/数字/下划线
 description: 一句话描述
 user-invocable: true
 ---
@@ -49,12 +49,13 @@ user-invocable: true
 
 ## 生成要求
 
-- name 字段：小写字母/数字/下划线，如 colleague_kongzi
+- name 字段：小写字母/数字/下划线，如 colleague_example
 - description：一句话，概括人物或功能
 - 人格类：PART B 必须完整覆盖六层结构，表达风格要具体（语气、口头禅、句式、用词）
 - 功能性：PART A 必须包含功能描述、使用方法、参数配置、工作流程
 - 内容用中文撰写（除非用户要求其他语言）
 - 人物类 SKILL 可基于你的知识补充背景（如历史人物事迹、著作、语录），不确定处标注"（待核实）"
+- 示例中的 colleague_example 仅为格式示范，禁止生成示例人物
 `;
 
 /** 构建系统提示词 */
@@ -99,6 +100,12 @@ export function buildGeneratePrompt(type: SkillType, collected: Record<string, s
 
 收集到的信息：
 ${facts || "（无，请基于常识生成合理内容）"}
+
+## 硬性要求
+
+- 必须严格使用「收集到的信息」中的人物/功能，禁止使用示例或虚构其他人物
+- name 必须基于收集信息中的人物/功能名生成（如张雪峰 → colleague_zhangxuefeng）
+- 若收集信息为空，请向用户说明缺少信息，而不是自行编造人物
 
 输出格式：先输出一个 JSON 代码块（\`\`\`json），包含：
 {

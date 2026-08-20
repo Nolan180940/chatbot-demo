@@ -14,6 +14,7 @@ import {
   parseLLMOutput,
 } from "@/lib/skill/prompts";
 import { validateSkill } from "@/lib/skill/validate";
+import { classifyAnswer, collectAnswer } from "@/lib/skill/collect";
 import { toSlug, normalizeName, TYPE_CATEGORY } from "@/lib/skill/schema";
 import type { SkillMeta, SkillType } from "@/lib/skill/types";
 import { buildSkillDoc, saveSkill } from "@/lib/skill/storage";
@@ -47,6 +48,14 @@ export default function SkillCreateWizard() {
     if (!userText || busy) return;
     setInput("");
     setError("");
+
+    // 把用户回答归类存入收集（关键：生成阶段依赖 collectedRef）
+    const lastAssistant =
+      messages.length > 0 && messages[messages.length - 1].role === "assistant"
+        ? messages[messages.length - 1].content
+        : "";
+    const key = classifyAnswer(lastAssistant, userText, type!);
+    collectedRef.current = collectAnswer(collectedRef.current, key, userText);
 
     const history: ChatMsg[] = [...messages, { role: "user", content: userText }];
     setMessages(history);
