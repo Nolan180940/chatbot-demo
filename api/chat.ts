@@ -4,8 +4,8 @@
  * 前端（Vite 构建的静态站）同源调用，无 CORS 问题。
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { REQUEST_TIMEOUT_MS } from "../src/lib/config";
-import { resolveEndpoint, buildUpstreamRequest } from "../src/lib/api-adapter";
+import { REQUEST_TIMEOUT_MS } from "../src/lib/config.ts";
+import { resolveEndpoint, buildUpstreamRequest } from "../src/lib/api-adapter.ts";
 
 const MAX_BODY_KB = 256;
 
