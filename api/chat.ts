@@ -3,10 +3,49 @@
  * 复用 src/lib/api-adapter.ts 的三协议识别逻辑，转发 SSE 流。
  * 前端（Vite 构建的静态站）同源调用，无 CORS 问题。
  */
-import { REQUEST_TIMEOUT_MS } from "../src/lib/config.ts";
-import { resolveEndpoint, buildUpstreamRequest } from "../src/lib/api-adapter.ts";
-
 const MAX_BODY_KB = 256;
+const REQUEST_TIMEOUT_MS = 120_000;
+
+function resolveEndpoint(baseUrl: string) {
+  const b = baseUrl.trim().replace(/\/+$/, "");
+  if (b.endsWith("/chat/completions")) return { kind: "openai-chat", url: b } as const;
+  if (b.endsWith("/responses")) return { kind: "openai-responses", url: b } as const;
+  if (b.endsWith("/messages")) return { kind: "anthropic-messages", url: b } as const;
+  if (b.endsWith("/v1")) return { kind: "openai-chat", url: `${b}/chat/completions` } as const;
+  return { kind: "openai-chat", url: `${b}/v1/chat/completions` } as const;
+}
+
+function buildUpstreamRequest(
+  kind: "openai-chat" | "openai-responses" | "anthropic-messages",
+  url: string,
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+): { url: string; headers: Record<string, string>; body: string } {
+  if (kind === "openai-chat") {
+    return {
+      url,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages, stream: true }),
+    };
+  }
+  if (kind === "openai-responses") {
+    return {
+      url,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        input: messages.map((m) => ({ role: m.role, content: [{ type: "input_text", text: m.content }] })),
+        stream: true,
+      }),
+    };
+  }
+  return {
+    url,
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model, messages, max_tokens: 4096, stream: true }),
+  };
+}
 
 export async function handler(req: Request): Promise<Response> {
   // 仅接受 POST
