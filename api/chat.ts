@@ -8,7 +8,7 @@ import { resolveEndpoint, buildUpstreamRequest } from "../src/lib/api-adapter.ts
 
 const MAX_BODY_KB = 256;
 
-export default async function handler(req: Request): Promise<Response> {
+export async function handler(req: Request): Promise<Response> {
   // 仅接受 POST
   if (req.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: "仅支持 POST" } });
 
@@ -60,7 +60,7 @@ export default async function handler(req: Request): Promise<Response> {
   req.signal.addEventListener("abort", () => controller.abort(), { once: true });
 
   try {
-    const upstream = await fetch(upstreamReq.url, {
+    const upstream = await globalThis.fetch(upstreamReq.url, {
       method: "POST",
       headers: upstreamReq.headers,
       body: upstreamReq.body,
@@ -98,6 +98,8 @@ export default async function handler(req: Request): Promise<Response> {
     return json(502, { error: { code: "network_error", message: e?.message ?? "网络错误" } });
   } finally { clearTimeout(timeoutId); }
 }
+
+export default { fetch: handler };
 
 function json(status: number, data: unknown): Response {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
