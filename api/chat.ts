@@ -3,59 +3,33 @@
  * 复用 src/lib/api-adapter.ts 的三协议识别逻辑，转发 SSE 流。
  * 前端（Vite 构建的静态站）同源调用，无 CORS 问题。
  */
-import type { IncomingMessage, ServerResponse } from "node:http";
 import { REQUEST_TIMEOUT_MS } from "../src/lib/config.ts";
 import { resolveEndpoint, buildUpstreamRequest } from "../src/lib/api-adapter.ts";
 
 const MAX_BODY_KB = 256;
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+export default async function handler(req: Request): Promise<Response> {
   // 仅接受 POST
-  if (req.method !== "POST") {
-    res.statusCode = 405;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: { code: "method_not_allowed", message: "仅支持 POST" } }));
-    return;
-  }
+  if (req.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: "仅支持 POST" } });
 
   // 1. 限制请求体大小
-  const contentLength = Number(req.headers["content-length"] ?? 0);
-  if (contentLength > MAX_BODY_KB * 1024) {
-    res.statusCode = 413;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: { code: "payload_too_large", message: "请求体过大" } }));
-    return;
-  }
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_BODY_KB * 1024) return json(413, { error: { code: "payload_too_large", message: "请求体过大" } });
 
   // 2. 读取并解析 JSON 请求体
   let body: any;
   try {
-    body = await readJson(req);
-  } catch {
-    res.statusCode = 400;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: { code: "invalid_json", message: "请求体不是合法 JSON" } }));
-    return;
-  }
+    body = await req.json();
+  } catch { return json(400, { error: { code: "invalid_json", message: "请求体不是合法 JSON" } }); }
 
   const { baseUrl, apiKey, model, messages } = body ?? {};
 
   // 3. 参数校验
   if (!baseUrl || !apiKey || !model) {
-    res.statusCode = 400;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({ error: { code: "invalid_params", message: "缺少 baseUrl / apiKey / model" } }),
-    );
-    return;
+    return json(400, { error: { code: "invalid_params", message: "缺少 baseUrl / apiKey / model" } });
   }
   if (!Array.isArray(messages) || messages.length === 0) {
-    res.statusCode = 400;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({ error: { code: "invalid_params", message: "messages 不能为空" } }),
-    );
-    return;
+    return json(400, { error: { code: "invalid_params", message: "messages 不能为空" } });
   }
 
   // 4. 安全校验：只允许 http/https 协议，防止 SSRF
@@ -67,14 +41,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
     normalizedBase = baseUrl.replace(/\/+$/, "");
   } catch {
-    res.statusCode = 400;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        error: { code: "invalid_base_url", message: "base URL 不合法，需以 http(s):// 开头" },
-      }),
-    );
-    return;
+    return json(400, { error: { code: "invalid_base_url", message: "base URL 不合法，需以 http(s):// 开头" } });
   }
 
   // 5. 识别协议并构造上游请求
@@ -90,8 +57,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   // 6. 超时控制 + 客户端断开时取消上游请求
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const onClientAbort = () => controller.abort();
-  req.on("close", onClientAbort);
+  req.signal.addEventListener("abort", () => controller.abort(), { once: true });
 
   try {
     const upstream = await fetch(upstreamReq.url, {
@@ -115,73 +81,26 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       } else {
         message = errText || `上游服务返回 ${upstream.status}`;
       }
-      res.statusCode = upstream.status;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          error: { code: "upstream_error", status: upstream.status, message },
-        }),
-      );
-      return;
+      return json(upstream.status, { error: { code: "upstream_error", status: upstream.status, message } });
     }
 
     // 8. 成功：转发 SSE 流
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-
-    const reader = upstream.body!.getReader();
-    const decoder = new TextDecoder();
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(decoder.decode(value, { stream: true }));
-      }
-    } finally {
-      reader.releaseLock();
-    }
-    res.end();
+    return new Response(upstream.body, { status: 200, headers: {
+      "Content-Type": upstream.headers.get("content-type") ?? "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    } });
   } catch (e: any) {
     clearTimeout(timeoutId);
-    if (res.writableEnded) return;
     if (e?.name === "AbortError") {
-      res.statusCode = 504;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({ error: { code: "timeout", message: "请求超时，请检查网络或 base URL" } }),
-      );
-      return;
+      return json(504, { error: { code: "timeout", message: "请求超时，请检查网络或 base URL" } });
     }
-    res.statusCode = 502;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: { code: "network_error", message: e?.message ?? "网络错误" } }));
-  } finally {
-    clearTimeout(timeoutId);
-    req.removeListener("close", onClientAbort);
-  }
+    return json(502, { error: { code: "network_error", message: e?.message ?? "网络错误" } });
+  } finally { clearTimeout(timeoutId); }
+}
+
+function json(status: number, data: unknown): Response {
+  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 }
 
 /** 读取请求体并解析 JSON */
-function readJson(req: IncomingMessage): Promise<any> {
-  return new Promise((resolve, reject) => {
-    let raw = "";
-    req.on("data", (chunk: Buffer) => {
-      raw += chunk;
-      if (raw.length > MAX_BODY_KB * 1024) {
-        reject(new Error("payload too large"));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(raw || "{}"));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on("error", reject);
-  });
-}
